@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ interface Course {
 }
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [newCourse, setNewCourse] = useState({ name: "", description: "" });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -110,7 +112,11 @@ const Dashboard = () => {
                   <CardDescription className="line-clamp-2">{course.description}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => navigate(`/course/${course.id}`, { state: { course } })}
+                  >
                     <FolderOpen className="h-4 w-4 mr-2" />
                     Open Course
                   </Button>
