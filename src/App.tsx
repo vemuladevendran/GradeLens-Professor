@@ -11,6 +11,7 @@ import CourseDetail from "./pages/CourseDetail";
 import CourseAssignments from "./pages/CourseAssignments";
 import ExamDetail from "./pages/ExamDetail";
 import Assignments from "./pages/Assignments";
+import AssignmentDetail from "./pages/AssignmentDetail";
 import Grading from "./pages/Grading";
 import GradeSubmission from "./pages/GradeSubmission";
 import Profile from "./pages/Profile";
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/course/:courseId/assignments" element={<CourseAssignments />} />
           <Route path="/course/:courseId/assignment/:assignmentId" element={<ExamDetail />} />
           <Route path="/assignments" element={<Assignments />} />
+          <Route path="/assignment/:assignmentId" element={<AssignmentDetail />} />
           <Route path="/grading" element={<Grading />} />
           <Route path="/grade/:studentId" element={<GradeSubmission />} />
           <Route path="/profile" element={<Profile />} />

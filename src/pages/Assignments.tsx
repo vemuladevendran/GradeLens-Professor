@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,8 @@ const dummyAssignments = [
 ];
 
 const Assignments = () => {
+  const navigate = useNavigate();
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -98,7 +101,11 @@ const Assignments = () => {
                       <span>{assignment.questions} questions</span>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigate(`/assignment/${assignment.id}`, { state: { assignment } })}
+                  >
                     View Details
                   </Button>
                 </div>
