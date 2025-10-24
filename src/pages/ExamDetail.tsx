@@ -5,12 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
 
 interface Question {
   id: string;
   question: string;
+  points: number;
+  minWords: number;
 }
 
 const ExamDetail = () => {
@@ -27,13 +30,15 @@ const ExamDetail = () => {
     const newQuestion: Question = {
       id: Date.now().toString(),
       question: "",
+      points: 10,
+      minWords: 50,
     };
     setQuestions([...questions, newQuestion]);
   };
 
-  const updateQuestion = (id: string, value: string) => {
+  const updateQuestion = (id: string, field: keyof Question, value: string | number) => {
     setQuestions(questions.map(q => 
-      q.id === id ? { ...q, question: value } : q
+      q.id === id ? { ...q, [field]: value } : q
     ));
   };
 
@@ -138,15 +143,43 @@ const ExamDetail = () => {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-2">
-                      <Label htmlFor={`question-${question.id}`}>Question Text</Label>
-                      <Textarea
-                        id={`question-${question.id}`}
-                        placeholder="Enter the question..."
-                        value={question.question}
-                        onChange={(e) => updateQuestion(question.id, e.target.value)}
-                        rows={3}
-                      />
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`question-${question.id}`}>Question Text</Label>
+                        <Textarea
+                          id={`question-${question.id}`}
+                          placeholder="Enter the question..."
+                          value={question.question}
+                          onChange={(e) => updateQuestion(question.id, "question", e.target.value)}
+                          rows={3}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor={`points-${question.id}`}>Points</Label>
+                          <Input
+                            id={`points-${question.id}`}
+                            type="number"
+                            min="0"
+                            placeholder="10"
+                            value={question.points}
+                            onChange={(e) => updateQuestion(question.id, "points", parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor={`minWords-${question.id}`}>Minimum Words</Label>
+                          <Input
+                            id={`minWords-${question.id}`}
+                            type="number"
+                            min="0"
+                            placeholder="50"
+                            value={question.minWords}
+                            onChange={(e) => updateQuestion(question.id, "minWords", parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

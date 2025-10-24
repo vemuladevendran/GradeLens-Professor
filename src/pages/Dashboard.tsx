@@ -17,7 +17,33 @@ interface Course {
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<Course[]>([
+    {
+      id: "1",
+      name: "Introduction to Computer Science",
+      description: "Learn the fundamentals of programming, data structures, and algorithms using Python."
+    },
+    {
+      id: "2",
+      name: "Data Structures & Algorithms",
+      description: "Advanced study of efficient data organization and problem-solving techniques."
+    },
+    {
+      id: "3",
+      name: "Web Development Fundamentals",
+      description: "Master HTML, CSS, JavaScript and modern web development frameworks."
+    },
+    {
+      id: "4",
+      name: "Database Management Systems",
+      description: "Understanding relational databases, SQL, and database design principles."
+    },
+    {
+      id: "5",
+      name: "Machine Learning Basics",
+      description: "Introduction to ML algorithms, neural networks, and practical AI applications."
+    }
+  ]);
   const [newCourse, setNewCourse] = useState({ name: "", description: "" });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
