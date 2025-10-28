@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GraduationCap } from "lucide-react";
 import { toast } from "sonner";
+import { API_ENDPOINTS } from "@/config/api";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ const Signup = () => {
         confirm_password: formData.confirmPassword,
       };
 
-      const response = await fetch("https://5k8sc5cn-8000.usw3.devtunnels.ms/api/professors/", {
+      const response = await fetch(API_ENDPOINTS.professors, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
