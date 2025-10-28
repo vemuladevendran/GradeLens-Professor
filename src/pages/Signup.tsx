@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GraduationCap } from "lucide-react";
+import { toast } from "sonner";
 
 const Signup = () => {
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -22,10 +25,64 @@ const Signup = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement registration
-    console.log("Signup attempt:", formData);
+    
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    // Validate password strength
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters long");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Transform camelCase to snake_case for API
+      const requestBody = {
+        full_name: formData.fullName,
+        email: formData.email,
+        institution_name: formData.institution,
+        password: formData.password,
+        confirm_password: formData.confirmPassword,
+      };
+
+      const response = await fetch("https://5k8sc5cn-8000.usw3.devtunnels.ms/api/professors/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle error response
+        const errorMessage = data.detail || data.message || "Signup failed. Please try again.";
+        toast.error(errorMessage);
+        return;
+      }
+
+      // Store user data in localStorage
+      localStorage.setItem("user", JSON.stringify(data));
+      
+      toast.success("Account created successfully!");
+      
+      // Redirect to dashboard
+      navigate("/dashboard");
+      
+    } catch (error) {
+      console.error("Signup error:", error);
+      toast.error("Network error. Please check your connection and try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -102,8 +159,8 @@ const Signup = () => {
                 required
               />
             </div>
-            <Button type="submit" className="w-full">
-              Create Account
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </form>
           <div className="mt-6 text-center text-sm">
