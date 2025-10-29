@@ -46,8 +46,8 @@ const CourseDetail = () => {
           <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-4">
             ← Back to Courses
           </Button>
-          <h1 className="text-3xl font-bold">{course.name}</h1>
-          <p className="text-muted-foreground">{course.description}</p>
+          <h1 className="text-3xl font-bold">{course.course_name}</h1>
+          <p className="text-muted-foreground">{course.course_description}</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -111,9 +111,9 @@ const CourseDetail = () => {
               <div className="p-3 bg-accent/10 rounded-lg w-fit mb-2">
                 <FileText className="h-8 w-8 text-accent" />
               </div>
-              <CardTitle>📂 Assignments</CardTitle>
+              <CardTitle>📂 Exams</CardTitle>
               <CardDescription>
-                Create and manage assignments, exams, and grading rubrics
+                Create and manage exams, questions, and grading rubrics
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -122,7 +122,7 @@ const CourseDetail = () => {
                 onClick={() => navigate(`/course/${course.id}/assignments`, { state: { course } })}
               >
                 <FolderOpen className="h-4 w-4 mr-2" />
-                Open Assignments
+                Manage Exams
               </Button>
             </CardContent>
           </Card>

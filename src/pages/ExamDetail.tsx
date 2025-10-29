@@ -110,7 +110,7 @@ const ExamDetail = () => {
           <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Create New Exam</h1>
-            <p className="text-muted-foreground">{course?.name}</p>
+            <p className="text-muted-foreground">{course?.course_name}</p>
           </div>
           <Button onClick={saveExam} disabled={isLoading}>
             <Save className="h-4 w-4 mr-2" />
