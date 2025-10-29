@@ -8,54 +8,56 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, BookOpen, FolderOpen } from "lucide-react";
+import { toast } from "sonner";
+import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
 
 interface Course {
-  id: string;
-  name: string;
-  description: string;
+  id: number;
+  course_name: string;
+  course_code: string;
+  course_description: string;
+  exams?: any[];
 }
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [courses, setCourses] = useState<Course[]>([
-    {
-      id: "1",
-      name: "Introduction to Computer Science",
-      description: "Learn the fundamentals of programming, data structures, and algorithms using Python."
-    },
-    {
-      id: "2",
-      name: "Data Structures & Algorithms",
-      description: "Advanced study of efficient data organization and problem-solving techniques."
-    },
-    {
-      id: "3",
-      name: "Web Development Fundamentals",
-      description: "Master HTML, CSS, JavaScript and modern web development frameworks."
-    },
-    {
-      id: "4",
-      name: "Database Management Systems",
-      description: "Understanding relational databases, SQL, and database design principles."
-    },
-    {
-      id: "5",
-      name: "Machine Learning Basics",
-      description: "Introduction to ML algorithms, neural networks, and practical AI applications."
-    }
-  ]);
-  const [newCourse, setNewCourse] = useState({ name: "", description: "" });
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [newCourse, setNewCourse] = useState({ 
+    course_name: "", 
+    course_code: "", 
+    course_description: "" 
+  });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleCreateCourse = () => {
-    if (newCourse.name && newCourse.description) {
-      const course: Course = {
-        id: Date.now().toString(),
-        ...newCourse,
-      };
-      setCourses([...courses, course]);
-      setNewCourse({ name: "", description: "" });
+  const handleCreateCourse = async () => {
+    if (!newCourse.course_name || !newCourse.course_code || !newCourse.course_description) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.createCourse, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(newCourse),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create course");
+      }
+
+      const data = await response.json();
+      setCourses([...courses, data.course]);
+      setNewCourse({ course_name: "", course_code: "", course_description: "" });
       setIsDialogOpen(false);
+      toast.success("Course created successfully");
+    } catch (error) {
+      console.error("Create course error:", error);
+      toast.error("Failed to create course");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -86,9 +88,18 @@ const Dashboard = () => {
                   <Label htmlFor="courseName">Course Name</Label>
                   <Input
                     id="courseName"
-                    placeholder="e.g., Introduction to Computer Science"
-                    value={newCourse.name}
-                    onChange={(e) => setNewCourse({ ...newCourse, name: e.target.value })}
+                    placeholder="e.g., Deep Learning Fundamentals"
+                    value={newCourse.course_name}
+                    onChange={(e) => setNewCourse({ ...newCourse, course_name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="courseCode">Course Code</Label>
+                  <Input
+                    id="courseCode"
+                    placeholder="e.g., DLF101"
+                    value={newCourse.course_code}
+                    onChange={(e) => setNewCourse({ ...newCourse, course_code: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -96,18 +107,18 @@ const Dashboard = () => {
                   <Textarea
                     id="courseDescription"
                     placeholder="Brief description of the course..."
-                    value={newCourse.description}
-                    onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })}
+                    value={newCourse.course_description}
+                    onChange={(e) => setNewCourse({ ...newCourse, course_description: e.target.value })}
                     rows={4}
                   />
                 </div>
               </div>
               <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isLoading}>
                   Cancel
                 </Button>
-                <Button onClick={handleCreateCourse}>
-                  Create Course
+                <Button onClick={handleCreateCourse} disabled={isLoading}>
+                  {isLoading ? "Creating..." : "Create Course"}
                 </Button>
               </div>
             </DialogContent>
@@ -134,8 +145,10 @@ const Dashboard = () => {
                       <BookOpen className="h-6 w-6 text-primary" />
                     </div>
                   </div>
-                  <CardTitle className="text-xl">{course.name}</CardTitle>
-                  <CardDescription className="line-clamp-2">{course.description}</CardDescription>
+                  <CardTitle className="text-xl">{course.course_name}</CardTitle>
+                  <CardDescription className="line-clamp-2">
+                    {course.course_code} • {course.course_description}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button 
