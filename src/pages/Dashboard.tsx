@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +29,29 @@ const Dashboard = () => {
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.getCourses, {
+          method: "GET",
+          headers: getAuthHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch courses");
+        }
+
+        const data = await response.json();
+        setCourses(data);
+      } catch (error) {
+        console.error("Fetch courses error:", error);
+        toast.error("Failed to load courses");
+      }
+    };
+
+    fetchCourses();
+  }, []);
 
   const handleCreateCourse = async () => {
     if (!newCourse.course_name || !newCourse.course_code || !newCourse.course_description) {
