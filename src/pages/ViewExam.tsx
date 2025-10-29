@@ -139,7 +139,21 @@ const ViewExam = () => {
         throw new Error("Failed to update exam");
       }
 
-      toast.success("Exam updated successfully!");
+      const data = await response.json();
+      toast.success(data.message || "Exam updated successfully!");
+      
+      // Update local state with returned data
+      if (data.exam) {
+        setExamName(data.exam.exam_name);
+        setRubric(data.exam.rubrics);
+        setQuestions(data.exam.assessment_questions.map((q: Question) => ({
+          id: q.id,
+          question: q.question,
+          question_weight: q.question_weight,
+          min_words: q.min_words,
+        })));
+      }
+      
       setIsEditMode(false);
     } catch (error) {
       console.error("Update exam error:", error);
