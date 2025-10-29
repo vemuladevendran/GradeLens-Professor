@@ -5,6 +5,7 @@ export const API_ENDPOINTS = {
   login: `${API_BASE_URL}/api/login/`,
   createCourse: `${API_BASE_URL}/api/create-course/`,
   getCourses: `${API_BASE_URL}/api/get-courses/`,
+  createExam: (courseId: string) => `${API_BASE_URL}/api/courses/${courseId}/create-exam/`,
 };
 
 export const getAuthHeaders = () => {

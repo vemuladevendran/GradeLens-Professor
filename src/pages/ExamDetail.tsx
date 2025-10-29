@@ -8,12 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Save } from "lucide-react";
 import { toast } from "sonner";
+import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
 
 interface Question {
   id: string;
   question: string;
-  points: number;
-  minWords: number;
+  question_weight: number;
+  min_words: number;
 }
 
 const ExamDetail = () => {
@@ -23,15 +24,17 @@ const ExamDetail = () => {
   const course = location.state?.course;
   const assignment = location.state?.assignment;
   
+  const [examName, setExamName] = useState("");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [rubric, setRubric] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const addQuestion = () => {
     const newQuestion: Question = {
       id: Date.now().toString(),
       question: "",
-      points: 10,
-      minWords: 50,
+      question_weight: 10,
+      min_words: 50,
     };
     setQuestions([...questions, newQuestion]);
   };
@@ -46,13 +49,51 @@ const ExamDetail = () => {
     setQuestions(questions.filter(q => q.id !== id));
   };
 
-  const saveExam = () => {
-    const examData = {
-      rubric,
-      questions,
-    };
-    toast.success("Exam saved successfully!");
-    console.log("Saving exam:", examData);
+  const saveExam = async () => {
+    if (!examName.trim()) {
+      toast.error("Please enter an exam name");
+      return;
+    }
+
+    if (questions.length === 0) {
+      toast.error("Please add at least one question");
+      return;
+    }
+
+    if (!rubric.trim()) {
+      toast.error("Please enter a grading rubric");
+      return;
+    }
+
+    const overall_score = questions.reduce((sum, q) => sum + q.question_weight, 0);
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.createExam(courseId!), {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          exam_name: examName,
+          rubrics: rubric,
+          overall_score,
+          course: courseId,
+          assessment_questions: questions.map(({ id, ...rest }) => rest),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create exam");
+      }
+
+      const data = await response.json();
+      toast.success("Exam created successfully!");
+      navigate(`/course/${courseId}/assignments`, { state: { course } });
+    } catch (error) {
+      console.error("Create exam error:", error);
+      toast.error("Failed to create exam");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -67,37 +108,46 @@ const ExamDetail = () => {
             ← Back to Assignments
           </Button>
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">{assignment?.name || "Exam Questions"}</h1>
-              <p className="text-muted-foreground">{course?.name}</p>
-            </div>
-            <Button onClick={saveExam}>
-              <Save className="h-4 w-4 mr-2" />
-              Save Exam
-            </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Create New Exam</h1>
+            <p className="text-muted-foreground">{course?.name}</p>
+          </div>
+          <Button onClick={saveExam} disabled={isLoading}>
+            <Save className="h-4 w-4 mr-2" />
+            {isLoading ? "Saving..." : "Save Exam"}
+          </Button>
           </div>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Grading Rubric</CardTitle>
+            <CardTitle>Exam Details</CardTitle>
             <CardDescription>
-              Define the grading criteria for all questions
+              Enter the exam name and grading criteria
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="exam-rubric">Rubric</Label>
+              <Label htmlFor="exam-name">Exam Name</Label>
+              <Input
+                id="exam-name"
+                placeholder="e.g., Final Exam"
+                value={examName}
+                onChange={(e) => setExamName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="exam-rubric">Grading Rubric</Label>
               <Textarea
                 id="exam-rubric"
                 placeholder="Enter the grading criteria and point distribution for this exam..."
                 value={rubric}
                 onChange={(e) => setRubric(e.target.value)}
-                rows={12}
+                rows={8}
                 className="font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
-                Define clear criteria for AI grading (e.g., "Each question worth 10 points: 5 points for accuracy, 3 points for explanation, 2 points for examples")
+                Define clear criteria for AI grading (e.g., "Grading based on clarity, correctness, and completeness")
               </p>
             </div>
           </CardContent>
@@ -157,14 +207,14 @@ const ExamDetail = () => {
                       
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor={`points-${question.id}`}>Points</Label>
+                          <Label htmlFor={`weight-${question.id}`}>Question Weight (Points)</Label>
                           <Input
-                            id={`points-${question.id}`}
+                            id={`weight-${question.id}`}
                             type="number"
                             min="0"
                             placeholder="10"
-                            value={question.points}
-                            onChange={(e) => updateQuestion(question.id, "points", parseInt(e.target.value) || 0)}
+                            value={question.question_weight}
+                            onChange={(e) => updateQuestion(question.id, "question_weight", parseInt(e.target.value) || 0)}
                           />
                         </div>
                         
@@ -175,8 +225,8 @@ const ExamDetail = () => {
                             type="number"
                             min="0"
                             placeholder="50"
-                            value={question.minWords}
-                            onChange={(e) => updateQuestion(question.id, "minWords", parseInt(e.target.value) || 0)}
+                            value={question.min_words}
+                            onChange={(e) => updateQuestion(question.id, "min_words", parseInt(e.target.value) || 0)}
                           />
                         </div>
                       </div>
@@ -189,15 +239,27 @@ const ExamDetail = () => {
         </Card>
 
         {questions.length > 0 && (
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => navigate(`/course/${courseId}/assignments`, { state: { course } })}>
-              Cancel
-            </Button>
-            <Button onClick={saveExam}>
-              <Save className="h-4 w-4 mr-2" />
-              Save Exam
-            </Button>
-          </div>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Points</p>
+                  <p className="text-2xl font-bold">
+                    {questions.reduce((sum, q) => sum + q.question_weight, 0)}
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => navigate(`/course/${courseId}/assignments`, { state: { course } })} disabled={isLoading}>
+                    Cancel
+                  </Button>
+                  <Button onClick={saveExam} disabled={isLoading}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {isLoading ? "Saving..." : "Save Exam"}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </DashboardLayout>
