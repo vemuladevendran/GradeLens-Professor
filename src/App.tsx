@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import CourseDetail from "./pages/CourseDetail";
 import CourseAssignments from "./pages/CourseAssignments";
 import ExamDetail from "./pages/ExamDetail";
+import ViewExam from "./pages/ViewExam";
 import Assignments from "./pages/Assignments";
 import AssignmentDetail from "./pages/AssignmentDetail";
 import Grading from "./pages/Grading";
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/course/:courseId" element={<CourseDetail />} />
           <Route path="/course/:courseId/assignments" element={<CourseAssignments />} />
           <Route path="/course/:courseId/exam/new" element={<ExamDetail />} />
+          <Route path="/course/:courseId/exam/:examId" element={<ViewExam />} />
           <Route path="/course/:courseId/assignment/:assignmentId" element={<ExamDetail />} />
           <Route path="/assignments" element={<Assignments />} />
           <Route path="/assignment/:assignmentId" element={<AssignmentDetail />} />
