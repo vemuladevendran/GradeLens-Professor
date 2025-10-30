@@ -39,7 +39,7 @@ const App = () => (
           <Route path="/assignments" element={<Assignments />} />
           <Route path="/assignment/:assignmentId" element={<AssignmentDetail />} />
           <Route path="/grading" element={<Grading />} />
-          <Route path="/grade/:studentId" element={<GradeSubmission />} />
+          <Route path="/grade-submission/:assignmentId/:studentName" element={<GradeSubmission />} />
           <Route path="/profile" element={<Profile />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

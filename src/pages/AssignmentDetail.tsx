@@ -7,10 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Users, FileText, ClipboardCheck, User, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { Calendar, Users, FileText, ClipboardCheck, User, ChevronDown, ChevronUp } from "lucide-react";
 import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
 import { toast } from "@/hooks/use-toast";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 
 interface Question {
   id: number;
@@ -48,7 +48,6 @@ const AssignmentDetail = () => {
   const { assignmentId } = useParams();
   const [examData, setExamData] = useState<ExamData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchExamData = async () => {
@@ -80,12 +79,6 @@ const AssignmentDetail = () => {
     fetchExamData();
   }, [assignmentId]);
 
-  const handleAutoGrade = () => {
-    toast({
-      title: "AI Grading",
-      description: "AI grading feature will be available soon.",
-    });
-  };
 
   if (isLoading) {
     return (
@@ -136,15 +129,9 @@ const AssignmentDetail = () => {
           <Button variant="ghost" onClick={() => navigate("/assignments")} className="mb-4">
             ← Back to Assignments
           </Button>
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">{examData.exam_name}</h1>
-              <p className="text-muted-foreground">{examData.course_name}</p>
-            </div>
-            <Button onClick={handleAutoGrade}>
-              <Sparkles className="h-4 w-4 mr-2" />
-              Auto Grade using AI
-            </Button>
+          <div>
+            <h1 className="text-3xl font-bold">{examData.exam_name}</h1>
+            <p className="text-muted-foreground">{examData.course_name}</p>
           </div>
         </div>
 
@@ -241,13 +228,7 @@ const AssignmentDetail = () => {
               {examData.student_submissions.map((student, index) => (
                 <Card key={index} className="hover:shadow-lg transition-shadow">
                   <CardContent className="py-4">
-                    <Collapsible
-                      open={expandedStudent === student.student_name}
-                      onOpenChange={() => setExpandedStudent(
-                        expandedStudent === student.student_name ? null : student.student_name
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className="p-3 bg-primary/10 rounded-full">
                             <User className="h-5 w-5 text-primary" />
@@ -269,56 +250,16 @@ const AssignmentDetail = () => {
                             {student.is_graded ? "Graded" : "Not Graded"}
                           </Badge>
                           {student.is_submitted && (
-                            <CollapsibleTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                {expandedStudent === student.student_name ? (
-                                  <>
-                                    <ChevronUp className="h-4 w-4 mr-2" />
-                                    Hide Answers
-                                  </>
-                                ) : (
-                                  <>
-                                    <ChevronDown className="h-4 w-4 mr-2" />
-                                    View Answers
-                                  </>
-                                )}
-                              </Button>
-                            </CollapsibleTrigger>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => navigate(`/grade-submission/${assignmentId}/${encodeURIComponent(student.student_name)}`)}
+                            >
+                              View Answers
+                            </Button>
                           )}
                         </div>
                       </div>
-
-                      {student.is_submitted && (
-                        <CollapsibleContent className="mt-4 space-y-4">
-                          {student.answers.map((answer, idx) => (
-                            <Card key={idx} className="bg-muted/30">
-                              <CardContent className="py-4">
-                                <div className="space-y-3">
-                                  <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <Badge variant="outline">Question {idx + 1}</Badge>
-                                        <Badge>{answer.question_weight} points</Badge>
-                                        {answer.received_weight > 0 && (
-                                          <Badge variant="secondary">
-                                            Score: {answer.received_weight}/{answer.question_weight}
-                                          </Badge>
-                                        )}
-                                      </div>
-                                      <p className="text-sm font-medium mb-2">{answer.question}</p>
-                                    </div>
-                                  </div>
-                                  <div className="bg-background rounded-md p-3">
-                                    <p className="text-sm text-muted-foreground font-medium mb-1">Student Answer:</p>
-                                    <p className="text-sm">{answer.answer_text}</p>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </CollapsibleContent>
-                      )}
-                    </Collapsible>
                   </CardContent>
                 </Card>
               ))}
