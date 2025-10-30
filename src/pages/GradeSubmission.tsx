@@ -36,14 +36,12 @@ interface StudentSubmission {
 
 const GradeSubmission = () => {
   const navigate = useNavigate();
-  const { assignmentId, studentName } = useParams();
+  const { courseId, assignmentId, studentId, studentName } = useParams();
   const [submission, setSubmission] = useState<StudentSubmission | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGrading, setIsGrading] = useState(false);
   const [grades, setGrades] = useState<{ [key: number]: GradeData }>({});
   const [overallFeedback, setOverallFeedback] = useState("");
-  const [courseId, setCourseId] = useState<string>("");
-  const [studentId, setStudentId] = useState<string>("");
 
   useEffect(() => {
     const fetchSubmission = async () => {
@@ -65,10 +63,6 @@ const GradeSubmission = () => {
 
         if (studentSubmission) {
           setSubmission(studentSubmission);
-          
-          // Extract courseId and studentId from the API response if available
-          if (data.course_id) setCourseId(data.course_id);
-          if (data.student_id) setStudentId(data.student_id);
           
           // Initialize grades with existing data if already graded
           if (studentSubmission.is_graded) {
@@ -96,8 +90,8 @@ const GradeSubmission = () => {
   }, [assignmentId, studentName]);
 
   const handleAutoGrade = async () => {
-    if (!courseId || !assignmentId || !studentId) {
-      toast.error("Missing required information for grading");
+    if (!courseId || !assignmentId || !studentId || studentId === "0") {
+      toast.error("Missing required information for grading. Please ensure your backend API returns student_id in the submissions response.");
       return;
     }
 

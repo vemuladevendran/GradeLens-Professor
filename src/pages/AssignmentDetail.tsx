@@ -27,6 +27,7 @@ interface Answer {
 }
 
 interface StudentSubmission {
+  student_id?: number;
   student_name: string;
   is_submitted: boolean;
   submission_timestamp: string | null;
@@ -37,6 +38,7 @@ interface StudentSubmission {
 interface ExamData {
   exam_name: string;
   course_name: string;
+  course_id?: number;
   num_enrolled_students: number;
   num_students_submitted: number;
   questions: Question[];
@@ -48,12 +50,14 @@ const AssignmentDetail = () => {
   const { assignmentId } = useParams();
   const [examData, setExamData] = useState<ExamData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [courseId, setCourseId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchExamData = async () => {
       if (!assignmentId) return;
 
       try {
+        // Fetch exam submissions
         const response = await fetch(API_ENDPOINTS.getExamSubmissions(assignmentId), {
           headers: getAuthHeaders(),
         });
@@ -64,6 +68,27 @@ const AssignmentDetail = () => {
 
         const data = await response.json();
         setExamData(data);
+
+        // If course_id is in the response, use it
+        if (data.course_id) {
+          setCourseId(data.course_id);
+        } else {
+          // Otherwise, fetch from courses list
+          const coursesResponse = await fetch(API_ENDPOINTS.getCourses, {
+            headers: getAuthHeaders(),
+          });
+          
+          if (coursesResponse.ok) {
+            const courses = await coursesResponse.json();
+            // Find the course that contains this exam
+            const course = courses.find((c: any) => 
+              c.exams?.some((e: any) => e.id === parseInt(assignmentId))
+            );
+            if (course) {
+              setCourseId(course.id);
+            }
+          }
+        }
       } catch (error) {
         console.error("Fetch exam details error:", error);
         toast({
@@ -253,7 +278,11 @@ const AssignmentDetail = () => {
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => navigate(`/grade-submission/${assignmentId}/${encodeURIComponent(student.student_name)}`)}
+                              onClick={() => {
+                                const studentId = student.student_id || 0;
+                                const cId = courseId || examData?.course_id || 0;
+                                navigate(`/grade-submission/${cId}/${assignmentId}/${studentId}/${encodeURIComponent(student.student_name)}`);
+                              }}
                             >
                               View Answers
                             </Button>
