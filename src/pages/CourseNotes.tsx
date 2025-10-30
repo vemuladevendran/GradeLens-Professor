@@ -6,8 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, FileText, Upload, Download, Eye } from "lucide-react";
+import { Plus, FileText, Upload, Download, Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { API_ENDPOINTS, API_BASE_URL, getAuthHeaders } from "@/config/api";
 
 interface Note {
@@ -125,6 +136,31 @@ const CourseNotes = () => {
     }
   };
 
+  const handleDeleteNote = async (noteId: number, noteName: string) => {
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(API_ENDPOINTS.deleteNote(noteId.toString()), {
+        method: "DELETE",
+        headers: {
+          ...(token && { Authorization: `Token ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete note");
+      }
+
+      const data = await response.json();
+      toast.success(data.message || `${noteName} deleted successfully`);
+      
+      // Refresh the notes list
+      await fetchNotes();
+    } catch (error) {
+      console.error("Delete note error:", error);
+      toast.error("Failed to delete note");
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -235,7 +271,7 @@ const CourseNotes = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 mb-2">
                     <Button 
                       variant="outline" 
                       className="flex-1"
@@ -260,6 +296,31 @@ const CourseNotes = () => {
                       Download
                     </Button>
                   </div>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="w-full" size="sm">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Note
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Note</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete "{note.note_name}"? This action cannot be undone and will remove all associated chunks.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteNote(note.id, note.note_name)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </CardContent>
               </Card>
             ))}

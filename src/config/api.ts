@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
   getExamSubmissions: (examId: string) => `${API_BASE_URL}/api/professor/exams/${examId}/submissions/`,
   uploadNote: (courseId: string) => `${API_BASE_URL}/api/courses/${courseId}/upload-note/`,
   getNotes: (courseId: string) => `${API_BASE_URL}/api/courses/${courseId}/notes/`,
+  deleteNote: (noteId: string) => `${API_BASE_URL}/api/notes/${noteId}/delete/`,
 };
 
 export const getAuthHeaders = () => {
