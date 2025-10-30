@@ -8,12 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, FileText, Upload, Download, Eye } from "lucide-react";
 import { toast } from "sonner";
-import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
+import { API_ENDPOINTS, API_BASE_URL, getAuthHeaders } from "@/config/api";
 
 interface Note {
   id: number;
   note_name: string;
-  file_url: string;
+  file: string;
   uploaded_at: string;
 }
 
@@ -239,7 +239,7 @@ const CourseNotes = () => {
                     <Button 
                       variant="outline" 
                       className="flex-1"
-                      onClick={() => window.open(note.file_url, '_blank')}
+                      onClick={() => window.open(`${API_BASE_URL}${note.file}`, '_blank')}
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       View
@@ -249,7 +249,7 @@ const CourseNotes = () => {
                       className="flex-1"
                       onClick={() => {
                         const link = document.createElement('a');
-                        link.href = note.file_url;
+                        link.href = `${API_BASE_URL}${note.file}`;
                         link.download = note.note_name;
                         document.body.appendChild(link);
                         link.click();
