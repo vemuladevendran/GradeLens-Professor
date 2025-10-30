@@ -6,15 +6,24 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { RefreshCw, CheckCircle, Sparkles } from "lucide-react";
 import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface Answer {
   question: string;
   question_weight: number;
   answer_text: string;
   received_weight: number;
+  feedback?: string;
+}
+
+interface GradeData {
+  received_weight: number;
+  feedback: string;
 }
 
 interface StudentSubmission {
@@ -31,6 +40,10 @@ const GradeSubmission = () => {
   const [submission, setSubmission] = useState<StudentSubmission | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGrading, setIsGrading] = useState(false);
+  const [grades, setGrades] = useState<{ [key: number]: GradeData }>({});
+  const [overallFeedback, setOverallFeedback] = useState("");
+  const [courseId, setCourseId] = useState<string>("");
+  const [studentId, setStudentId] = useState<string>("");
 
   useEffect(() => {
     const fetchSubmission = async () => {
@@ -52,16 +65,28 @@ const GradeSubmission = () => {
 
         if (studentSubmission) {
           setSubmission(studentSubmission);
+          
+          // Extract courseId and studentId from the API response if available
+          if (data.course_id) setCourseId(data.course_id);
+          if (data.student_id) setStudentId(data.student_id);
+          
+          // Initialize grades with existing data if already graded
+          if (studentSubmission.is_graded) {
+            const existingGrades: { [key: number]: GradeData } = {};
+            studentSubmission.answers.forEach((answer, index) => {
+              existingGrades[index] = {
+                received_weight: answer.received_weight,
+                feedback: answer.feedback || "",
+              };
+            });
+            setGrades(existingGrades);
+          }
         } else {
           throw new Error("Student submission not found");
         }
       } catch (error) {
         console.error("Fetch submission error:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load submission. Please try again.",
-          variant: "destructive",
-        });
+        toast.error("Failed to load submission. Please try again.");
       } finally {
         setIsLoading(false);
       }
@@ -70,23 +95,74 @@ const GradeSubmission = () => {
     fetchSubmission();
   }, [assignmentId, studentName]);
 
-  const handleAutoGrade = () => {
+  const handleAutoGrade = async () => {
+    if (!courseId || !assignmentId || !studentId) {
+      toast.error("Missing required information for grading");
+      return;
+    }
+
     setIsGrading(true);
-    // Simulate AI grading
-    setTimeout(() => {
-      setIsGrading(false);
-      toast({
-        title: "AI Grading",
-        description: "AI grading feature will be available soon.",
+    try {
+      const response = await fetch(
+        API_ENDPOINTS.autoGrade(courseId, assignmentId, studentId),
+        {
+          method: "GET",
+          headers: getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to auto-grade");
+      }
+
+      const data = await response.json();
+      
+      // Populate grades from API response
+      const newGrades: { [key: number]: GradeData } = {};
+      data.answers.forEach((answer: any, index: number) => {
+        newGrades[index] = {
+          received_weight: parseFloat(answer.feedback?.total_score?.result || "0"),
+          feedback: answer.feedback?.overall_feedback || "",
+        };
       });
-    }, 2000);
+      
+      setGrades(newGrades);
+      setOverallFeedback(data.overall_feedback || "");
+      
+      toast.success("AI grading completed! Review and edit as needed.");
+    } catch (error) {
+      console.error("Auto-grade error:", error);
+      toast.error("Failed to auto-grade. Please try again.");
+    } finally {
+      setIsGrading(false);
+    }
+  };
+
+  const handleGradeChange = (index: number, field: keyof GradeData, value: string | number) => {
+    setGrades((prev) => ({
+      ...prev,
+      [index]: {
+        ...prev[index],
+        [field]: field === "received_weight" ? parseFloat(value as string) || 0 : value,
+      },
+    }));
   };
 
   const handleSaveGrades = () => {
-    toast({
-      title: "Success",
-      description: "Grades saved successfully!",
-    });
+    // Validate that all questions have been graded
+    const allGraded = submission?.answers.every((_, index) => 
+      grades[index] && grades[index].received_weight !== undefined
+    );
+
+    if (!allGraded) {
+      toast.error("Please provide grades for all questions");
+      return;
+    }
+
+    // Here you would typically send the grades to your backend
+    console.log("Saving grades:", grades, "Overall feedback:", overallFeedback);
+    
+    toast.success("Grades saved successfully!");
     navigate(`/assignment/${assignmentId}`);
   };
 
@@ -119,7 +195,10 @@ const GradeSubmission = () => {
     );
   }
 
-  const totalScore = submission.answers.reduce((sum, a) => sum + a.received_weight, 0);
+  const totalScore = submission.answers.reduce(
+    (sum, _, index) => sum + (grades[index]?.received_weight || 0), 
+    0
+  );
   const maxScore = submission.answers.reduce((sum, a) => sum + a.question_weight, 0);
 
   return (
@@ -137,40 +216,47 @@ const GradeSubmission = () => {
                   `Submitted: ${new Date(submission.submission_timestamp).toLocaleString()}`}
               </p>
             </div>
-            {!submission.is_graded && (
-              <Button onClick={handleAutoGrade} disabled={isGrading}>
-                {isGrading ? (
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4 mr-2" />
-                )}
-                Auto Grade using AI
-              </Button>
-            )}
+            <Button onClick={handleAutoGrade} disabled={isGrading}>
+              {isGrading ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              Auto Grade using AI
+            </Button>
           </div>
         </div>
 
-        {submission.is_graded && (
+        {Object.keys(grades).length > 0 && (
           <Card className="border-l-4 border-l-primary">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Overall Score</CardTitle>
-                  <CardDescription>Final grade</CardDescription>
+                  <CardDescription>Current total based on grading</CardDescription>
                 </div>
                 <Badge variant="default" className="text-2xl px-6 py-2">
-                  {totalScore}/{maxScore}
+                  {totalScore.toFixed(2)}/{maxScore}
                 </Badge>
               </div>
             </CardHeader>
+            {overallFeedback && (
+              <CardContent>
+                <Label>Overall Feedback</Label>
+                <Textarea
+                  value={overallFeedback}
+                  onChange={(e) => setOverallFeedback(e.target.value)}
+                  rows={3}
+                  className="mt-2"
+                />
+              </CardContent>
+            )}
           </Card>
         )}
 
         <Tabs defaultValue="detailed" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="detailed">
-              {submission.is_graded ? "Graded Answers" : "Student Answers"}
-            </TabsTrigger>
+            <TabsTrigger value="detailed">Grade Answers</TabsTrigger>
           </TabsList>
 
           <TabsContent value="detailed" className="space-y-4">
@@ -183,17 +269,17 @@ const GradeSubmission = () => {
                       <p className="text-sm text-muted-foreground font-medium mb-2">{answer.question}</p>
                       <div className="flex items-center gap-2">
                         <Badge variant="outline">{answer.question_weight} points</Badge>
-                        {submission.is_graded && answer.received_weight > 0 && (
+                        {grades[index]?.received_weight !== undefined && (
                           <Badge 
                             variant={
-                              answer.received_weight >= answer.question_weight * 0.8 
+                              grades[index].received_weight >= answer.question_weight * 0.8 
                                 ? "default" 
-                                : answer.received_weight >= answer.question_weight * 0.6 
+                                : grades[index].received_weight >= answer.question_weight * 0.6 
                                 ? "secondary" 
                                 : "destructive"
                             }
                           >
-                            Score: {answer.received_weight}/{answer.question_weight}
+                            Score: {grades[index].received_weight.toFixed(2)}/{answer.question_weight}
                           </Badge>
                         )}
                       </div>
@@ -207,32 +293,48 @@ const GradeSubmission = () => {
                       <pre className="text-sm whitespace-pre-wrap font-sans">{answer.answer_text}</pre>
                     </div>
                   </div>
-                  {submission.is_graded && (
-                    <div>
-                      <h4 className="font-medium mb-2 flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-primary" />
-                        Feedback:
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        {answer.received_weight === answer.question_weight 
-                          ? "Perfect score! Excellent work." 
-                          : "Good attempt. Review the feedback for improvement."}
-                      </p>
+                  
+                  <div className="grid gap-4 pt-4 border-t">
+                    <div className="grid gap-2">
+                      <Label htmlFor={`score-${index}`}>
+                        Score (Max: {answer.question_weight} points)
+                      </Label>
+                      <Input
+                        id={`score-${index}`}
+                        type="number"
+                        min="0"
+                        max={answer.question_weight}
+                        step="0.1"
+                        placeholder="Enter score"
+                        value={grades[index]?.received_weight || ""}
+                        onChange={(e) => handleGradeChange(index, "received_weight", e.target.value)}
+                      />
                     </div>
-                  )}
+                    
+                    <div className="grid gap-2">
+                      <Label htmlFor={`feedback-${index}`}>Feedback</Label>
+                      <Textarea
+                        id={`feedback-${index}`}
+                        placeholder="Enter feedback for the student"
+                        rows={4}
+                        value={grades[index]?.feedback || ""}
+                        onChange={(e) => handleGradeChange(index, "feedback", e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </TabsContent>
         </Tabs>
 
-        {submission.is_graded && (
+        {Object.keys(grades).length > 0 && (
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => navigate(`/assignment/${assignmentId}`)}>
               Back to Assignment
             </Button>
             <Button onClick={handleSaveGrades}>
-              Save Changes
+              Submit Grades
             </Button>
           </div>
         )}
