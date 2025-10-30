@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, FileText, Upload } from "lucide-react";
+import { Plus, FileText, Upload, Download, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
 
@@ -24,8 +24,39 @@ const CourseNotes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [noteName, setNoteName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    if (course) {
+      fetchNotes();
+    }
+  }, [course]);
+
+  const fetchNotes = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(API_ENDPOINTS.getNotes(course.id.toString()), {
+        headers: {
+          ...(token && { Authorization: `Token ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch notes");
+      }
+
+      const data = await response.json();
+      setNotes(data);
+    } catch (error) {
+      console.error("Fetch notes error:", error);
+      toast.error("Failed to load notes");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   if (!course) {
     return (
@@ -79,8 +110,8 @@ const CourseNotes = () => {
       const data = await response.json();
       toast.success("Note uploaded successfully");
       
-      // Add the new note to the list
-      setNotes([...notes, data]);
+      // Refresh the notes list
+      await fetchNotes();
       
       // Reset form
       setNoteName("");
@@ -165,7 +196,22 @@ const CourseNotes = () => {
           </div>
         </div>
 
-        {notes.length === 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <div className="h-10 w-10 bg-muted rounded-lg animate-pulse mb-2" />
+                  <div className="h-6 w-3/4 bg-muted rounded animate-pulse mb-2" />
+                  <div className="h-4 w-1/2 bg-muted rounded animate-pulse" />
+                </CardHeader>
+                <CardContent>
+                  <div className="h-10 w-full bg-muted rounded animate-pulse" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : notes.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
@@ -189,13 +235,31 @@ const CourseNotes = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => window.open(note.file_url, '_blank')}
-                  >
-                    View Note
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={() => window.open(note.file_url, '_blank')}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = note.file_url;
+                        link.download = note.note_name;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
