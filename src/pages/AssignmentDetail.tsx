@@ -1,36 +1,115 @@
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Users, FileText, ClipboardCheck, User } from "lucide-react";
+import { Calendar, Users, FileText, ClipboardCheck, User, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
+import { toast } from "@/hooks/use-toast";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
+interface Question {
+  id: number;
+  question: string;
+  question_weight: number;
+  min_words: number;
+}
+
+interface Answer {
+  question: string;
+  question_weight: number;
+  answer_text: string;
+  received_weight: number;
+}
+
+interface StudentSubmission {
+  student_name: string;
+  is_submitted: boolean;
+  submission_timestamp: string | null;
+  is_graded: boolean;
+  answers: Answer[];
+}
+
+interface ExamData {
+  exam_name: string;
+  course_name: string;
+  num_enrolled_students: number;
+  num_students_submitted: number;
+  questions: Question[];
+  student_submissions: StudentSubmission[];
+}
 
 const AssignmentDetail = () => {
   const navigate = useNavigate();
   const { assignmentId } = useParams();
-  const location = useLocation();
-  const assignment = location.state?.assignment;
+  const [examData, setExamData] = useState<ExamData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
 
-  // Dummy questions for this assignment
-  const questions = [
-    { id: 1, text: "Explain the difference between a stack and a queue", points: 10 },
-    { id: 2, text: "What is Big O notation and why is it important?", points: 10 },
-    { id: 3, text: "Implement a function to reverse a linked list", points: 15 },
-    { id: 4, text: "Describe the SOLID principles in object-oriented programming", points: 15 },
-    { id: 5, text: "What is the difference between SQL and NoSQL databases?", points: 10 },
-  ];
+  useEffect(() => {
+    const fetchExamData = async () => {
+      if (!assignmentId) return;
 
-  const submissions = [
-    { id: "s1", name: "Alice Johnson", status: "graded", score: 85, submittedAt: "2025-10-28 14:30" },
-    { id: "s2", name: "Bob Smith", status: "graded", score: 92, submittedAt: "2025-10-28 15:45" },
-    { id: "s3", name: "Charlie Brown", status: "pending", score: null, submittedAt: "2025-10-29 09:20" },
-    { id: "s4", name: "Diana Prince", status: "pending", score: null, submittedAt: "2025-10-29 11:15" },
-    { id: "s5", name: "Eve Wilson", status: "graded", score: 78, submittedAt: "2025-10-27 16:00" },
-  ];
+      try {
+        const response = await fetch(API_ENDPOINTS.getExamSubmissions(assignmentId), {
+          headers: getAuthHeaders(),
+        });
 
-  if (!assignment) {
+        if (!response.ok) {
+          throw new Error("Failed to fetch exam details");
+        }
+
+        const data = await response.json();
+        setExamData(data);
+      } catch (error) {
+        console.error("Fetch exam details error:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load exam details. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchExamData();
+  }, [assignmentId]);
+
+  const handleAutoGrade = () => {
+    toast({
+      title: "AI Grading",
+      description: "AI grading feature will be available soon.",
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <Skeleton className="h-10 w-64" />
+          <div className="grid md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-4 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-32" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!examData) {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
@@ -43,8 +122,12 @@ const AssignmentDetail = () => {
     );
   }
 
-  const submissionRate = (assignment.submissions / assignment.totalStudents) * 100;
-  const gradedCount = submissions.filter(s => s.status === "graded").length;
+  const submissionRate = examData.num_enrolled_students > 0
+    ? (examData.num_students_submitted / examData.num_enrolled_students) * 100
+    : 0;
+
+  const gradedCount = examData.student_submissions.filter(s => s.is_graded).length;
+  const totalSubmitted = examData.student_submissions.filter(s => s.is_submitted).length;
 
   return (
     <DashboardLayout>
@@ -55,15 +138,13 @@ const AssignmentDetail = () => {
           </Button>
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold">{assignment.name}</h1>
-              <p className="text-muted-foreground">{assignment.course}</p>
+              <h1 className="text-3xl font-bold">{examData.exam_name}</h1>
+              <p className="text-muted-foreground">{examData.course_name}</p>
             </div>
-            <Badge variant={
-              assignment.status === "graded" ? "secondary" :
-              assignment.status === "active" ? "default" : "outline"
-            }>
-              {assignment.status}
-            </Badge>
+            <Button onClick={handleAutoGrade}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              Auto Grade using AI
+            </Button>
           </div>
         </div>
 
@@ -71,16 +152,14 @@ const AssignmentDetail = () => {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                Due Date
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                Questions
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">
-                {new Date(assignment.dueDate).toLocaleDateString()}
-              </p>
+              <p className="text-2xl font-bold">{examData.questions.length}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {new Date(assignment.dueDate).toLocaleDateString('en-US', { weekday: 'long' })}
+                Total points: {examData.questions.reduce((sum, q) => sum + q.question_weight, 0)}
               </p>
             </CardContent>
           </Card>
@@ -94,7 +173,7 @@ const AssignmentDetail = () => {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                {assignment.submissions}/{assignment.totalStudents}
+                {examData.num_students_submitted}/{examData.num_enrolled_students}
               </p>
               <Progress value={submissionRate} className="mt-2" />
               <p className="text-xs text-muted-foreground mt-1">
@@ -112,11 +191,11 @@ const AssignmentDetail = () => {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                {gradedCount}/{assignment.submissions}
+                {gradedCount}/{totalSubmitted}
               </p>
-              <Progress value={(gradedCount / assignment.submissions) * 100} className="mt-2" />
+              <Progress value={totalSubmitted > 0 ? (gradedCount / totalSubmitted) * 100 : 0} className="mt-2" />
               <p className="text-xs text-muted-foreground mt-1">
-                {assignment.submissions - gradedCount} pending
+                {totalSubmitted - gradedCount} pending
               </p>
             </CardContent>
           </Card>
@@ -124,8 +203,8 @@ const AssignmentDetail = () => {
 
         <Tabs defaultValue="questions" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="questions">Questions ({questions.length})</TabsTrigger>
-            <TabsTrigger value="submissions">Submissions ({assignment.submissions})</TabsTrigger>
+            <TabsTrigger value="questions">Questions ({examData.questions.length})</TabsTrigger>
+            <TabsTrigger value="submissions">Submissions ({examData.num_students_submitted})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="questions" className="space-y-4">
@@ -133,20 +212,21 @@ const AssignmentDetail = () => {
               <CardHeader>
                 <CardTitle>Exam Questions</CardTitle>
                 <CardDescription>
-                  Total points: {questions.reduce((sum, q) => sum + q.points, 0)}
+                  Total points: {examData.questions.reduce((sum, q) => sum + q.question_weight, 0)}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {questions.map((question, index) => (
+                {examData.questions.map((question, index) => (
                   <Card key={question.id} className="border-l-4 border-l-primary">
                     <CardContent className="py-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <Badge variant="outline">Question {index + 1}</Badge>
-                            <Badge>{question.points} points</Badge>
+                            <Badge>{question.question_weight} points</Badge>
+                            <Badge variant="secondary">{question.min_words} min words</Badge>
                           </div>
-                          <p className="text-sm">{question.text}</p>
+                          <p className="text-sm">{question.question}</p>
                         </div>
                       </div>
                     </CardContent>
@@ -157,49 +237,88 @@ const AssignmentDetail = () => {
           </TabsContent>
 
           <TabsContent value="submissions" className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Student Submissions</h3>
-              <Button onClick={() => navigate("/grading")}>
-                <ClipboardCheck className="h-4 w-4 mr-2" />
-                Go to Grading
-              </Button>
-            </div>
             <div className="grid gap-4">
-              {submissions.map((student) => (
-                <Card key={student.id} className="hover:shadow-lg transition-shadow">
+              {examData.student_submissions.map((student, index) => (
+                <Card key={index} className="hover:shadow-lg transition-shadow">
                   <CardContent className="py-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-primary/10 rounded-full">
-                          <User className="h-5 w-5 text-primary" />
+                    <Collapsible
+                      open={expandedStudent === student.student_name}
+                      onOpenChange={() => setExpandedStudent(
+                        expandedStudent === student.student_name ? null : student.student_name
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 bg-primary/10 rounded-full">
+                            <User className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold">{student.student_name}</h4>
+                            {student.submission_timestamp && (
+                              <p className="text-sm text-muted-foreground">
+                                Submitted: {new Date(student.submission_timestamp).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-semibold">{student.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Submitted: {student.submittedAt}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {student.status === "graded" && student.score !== null && (
-                          <Badge variant="secondary" className="text-lg px-4 py-1">
-                            {student.score}/100
+                        <div className="flex items-center gap-3">
+                          <Badge variant={student.is_submitted ? "default" : "outline"}>
+                            {student.is_submitted ? "Submitted" : "Not Submitted"}
                           </Badge>
-                        )}
-                        <Badge variant={student.status === "graded" ? "secondary" : "default"}>
-                          {student.status}
-                        </Badge>
-                        <Button 
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/grade/${student.id}`, { 
-                            state: { studentName: student.name, assignmentId } 
-                          })}
-                        >
-                          {student.status === "graded" ? "View" : "Grade"}
-                        </Button>
+                          <Badge variant={student.is_graded ? "secondary" : "outline"}>
+                            {student.is_graded ? "Graded" : "Not Graded"}
+                          </Badge>
+                          {student.is_submitted && (
+                            <CollapsibleTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                {expandedStudent === student.student_name ? (
+                                  <>
+                                    <ChevronUp className="h-4 w-4 mr-2" />
+                                    Hide Answers
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown className="h-4 w-4 mr-2" />
+                                    View Answers
+                                  </>
+                                )}
+                              </Button>
+                            </CollapsibleTrigger>
+                          )}
+                        </div>
                       </div>
-                    </div>
+
+                      {student.is_submitted && (
+                        <CollapsibleContent className="mt-4 space-y-4">
+                          {student.answers.map((answer, idx) => (
+                            <Card key={idx} className="bg-muted/30">
+                              <CardContent className="py-4">
+                                <div className="space-y-3">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <Badge variant="outline">Question {idx + 1}</Badge>
+                                        <Badge>{answer.question_weight} points</Badge>
+                                        {answer.received_weight > 0 && (
+                                          <Badge variant="secondary">
+                                            Score: {answer.received_weight}/{answer.question_weight}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <p className="text-sm font-medium mb-2">{answer.question}</p>
+                                    </div>
+                                  </div>
+                                  <div className="bg-background rounded-md p-3">
+                                    <p className="text-sm text-muted-foreground font-medium mb-1">Student Answer:</p>
+                                    <p className="text-sm">{answer.answer_text}</p>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </CollapsibleContent>
+                      )}
+                    </Collapsible>
                   </CardContent>
                 </Card>
               ))}
