@@ -39,8 +39,8 @@ interface ExamData {
   exam_name: string;
   course_name: string;
   course_id?: number;
-  num_enrolled_students: number;
-  num_students_submitted: number;
+  questions_count: number;
+  total_submissions: number;
   questions: Question[];
   submissions: StudentSubmission[];
 }
@@ -140,12 +140,8 @@ const AssignmentDetail = () => {
     );
   }
 
-  const submissionRate = examData.num_enrolled_students > 0
-    ? (examData.num_students_submitted / examData.num_enrolled_students) * 100
-    : 0;
-
   const gradedCount = examData.submissions.filter(s => s.is_graded).length;
-  const totalSubmitted = examData.submissions.filter(s => s.is_submitted).length;
+  const totalSubmitted = examData.total_submissions;
 
   return (
     <DashboardLayout>
@@ -185,11 +181,10 @@ const AssignmentDetail = () => {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                {examData.num_students_submitted}/{examData.num_enrolled_students}
+                {examData.total_submissions}
               </p>
-              <Progress value={submissionRate} className="mt-2" />
               <p className="text-xs text-muted-foreground mt-1">
-                {submissionRate.toFixed(0)}% submitted
+                Total submissions received
               </p>
             </CardContent>
           </Card>
@@ -216,7 +211,7 @@ const AssignmentDetail = () => {
         <Tabs defaultValue="questions" className="space-y-4">
           <TabsList>
             <TabsTrigger value="questions">Questions ({examData.questions.length})</TabsTrigger>
-            <TabsTrigger value="submissions">Submissions ({examData.num_students_submitted})</TabsTrigger>
+            <TabsTrigger value="submissions">Submissions ({examData.total_submissions})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="questions" className="space-y-4">
