@@ -41,6 +41,7 @@ const GradeSubmission = () => {
   const [submission, setSubmission] = useState<StudentSubmission | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGrading, setIsGrading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [grades, setGrades] = useState<{ [key: number]: GradeData }>({});
   const [overallFeedback, setOverallFeedback] = useState("");
 
@@ -173,6 +174,7 @@ const GradeSubmission = () => {
       return;
     }
 
+    setIsSaving(true);
     try {
       // Calculate overall score
       const overall_received_score = submission?.answers.reduce(
@@ -211,6 +213,8 @@ const GradeSubmission = () => {
     } catch (error) {
       console.error("Error saving grades:", error);
       toast.error("Failed to save grades. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -266,11 +270,16 @@ const GradeSubmission = () => {
             </div>
             <Button onClick={handleAutoGrade} disabled={isGrading}>
               {isGrading ? (
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Grading...
+                </>
               ) : (
-                <Sparkles className="h-4 w-4 mr-2" />
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Auto Grade using AI
+                </>
               )}
-              Auto Grade using AI
             </Button>
           </div>
         </div>
@@ -381,11 +390,25 @@ const GradeSubmission = () => {
 
         {Object.keys(grades).length > 0 && (
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => navigate(`/assignment/${assignmentId}`)}>
+            <Button 
+              variant="outline" 
+              onClick={() => navigate(`/assignment/${assignmentId}`)}
+              disabled={isSaving}
+            >
               Back to Assignment
             </Button>
-            <Button onClick={handleSaveGrades}>
-              Submit Grades
+            <Button onClick={handleSaveGrades} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Submit Grades
+                </>
+              )}
             </Button>
           </div>
         )}
