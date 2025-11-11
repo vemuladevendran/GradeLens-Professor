@@ -189,18 +189,20 @@ const GradeSubmission = () => {
         is_graded: true,
       })) || [];
 
-      const response = await fetch(
-        API_ENDPOINTS.saveGrades(courseId, assignmentId, studentId),
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            overall_received_score,
-            overall_feedback: overallFeedback,
-            answers,
-          }),
-        }
-      );
+      const isUpdate = submission?.is_graded;
+      const endpoint = isUpdate 
+        ? API_ENDPOINTS.updateGrades(courseId, assignmentId, studentId)
+        : API_ENDPOINTS.saveGrades(courseId, assignmentId, studentId);
+      
+      const response = await fetch(endpoint, {
+        method: isUpdate ? "PATCH" : "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          overall_received_score,
+          overall_feedback: overallFeedback,
+          answers,
+        }),
+      });
 
       if (!response.ok) {
         throw new Error("Failed to save grades");
