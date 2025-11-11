@@ -29,11 +29,9 @@ interface Answer {
 interface StudentSubmission {
   student_id?: number;
   student_name: string;
-  student_email?: string;
-  submitted_at: string | null;
+  is_submitted: boolean;
+  submission_timestamp: string | null;
   is_graded: boolean;
-  overall_received_score?: number;
-  overall_feedback?: string;
   answers: Answer[];
 }
 
@@ -41,10 +39,10 @@ interface ExamData {
   exam_name: string;
   course_name: string;
   course_id?: number;
-  questions_count: number;
-  total_submissions: number;
+  num_enrolled_students: number;
+  num_students_submitted: number;
   questions: Question[];
-  submissions: StudentSubmission[];
+  student_submissions: StudentSubmission[];
 }
 
 const AssignmentDetail = () => {
@@ -142,8 +140,12 @@ const AssignmentDetail = () => {
     );
   }
 
-  const gradedCount = examData.submissions.filter(s => s.is_graded).length;
-  const totalSubmitted = examData.total_submissions;
+  const submissionRate = examData.num_enrolled_students > 0
+    ? (examData.num_students_submitted / examData.num_enrolled_students) * 100
+    : 0;
+
+  const gradedCount = examData.student_submissions.filter(s => s.is_graded).length;
+  const totalSubmitted = examData.student_submissions.filter(s => s.is_submitted).length;
 
   return (
     <DashboardLayout>
@@ -183,10 +185,11 @@ const AssignmentDetail = () => {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                {examData.total_submissions}
+                {examData.num_students_submitted}/{examData.num_enrolled_students}
               </p>
+              <Progress value={submissionRate} className="mt-2" />
               <p className="text-xs text-muted-foreground mt-1">
-                Total submissions received
+                {submissionRate.toFixed(0)}% submitted
               </p>
             </CardContent>
           </Card>
@@ -213,7 +216,7 @@ const AssignmentDetail = () => {
         <Tabs defaultValue="questions" className="space-y-4">
           <TabsList>
             <TabsTrigger value="questions">Questions ({examData.questions.length})</TabsTrigger>
-            <TabsTrigger value="submissions">Submissions ({examData.total_submissions})</TabsTrigger>
+            <TabsTrigger value="submissions">Submissions ({examData.num_students_submitted})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="questions" className="space-y-4">
@@ -247,7 +250,7 @@ const AssignmentDetail = () => {
 
           <TabsContent value="submissions" className="space-y-4">
             <div className="grid gap-4">
-              {examData.submissions.map((student, index) => (
+              {examData.student_submissions.map((student, index) => (
                 <Card key={index} className="hover:shadow-lg transition-shadow">
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between">
@@ -257,21 +260,21 @@ const AssignmentDetail = () => {
                           </div>
                           <div>
                             <h4 className="font-semibold">{student.student_name}</h4>
-                            {student.submitted_at && (
+                            {student.submission_timestamp && (
                               <p className="text-sm text-muted-foreground">
-                                Submitted: {new Date(student.submitted_at).toLocaleString()}
+                                Submitted: {new Date(student.submission_timestamp).toLocaleString()}
                               </p>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <Badge variant={student.submitted_at ? "default" : "outline"}>
-                            {student.submitted_at ? "Submitted" : "Not Submitted"}
+                          <Badge variant={student.is_submitted ? "default" : "outline"}>
+                            {student.is_submitted ? "Submitted" : "Not Submitted"}
                           </Badge>
                           <Badge variant={student.is_graded ? "secondary" : "outline"}>
                             {student.is_graded ? "Graded" : "Not Graded"}
                           </Badge>
-                          {student.submitted_at && (
+                          {student.is_submitted && (
                             <Button 
                               variant="outline" 
                               size="sm"

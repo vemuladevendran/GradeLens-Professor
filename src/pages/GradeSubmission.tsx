@@ -32,8 +32,6 @@ interface StudentSubmission {
   is_submitted: boolean;
   submission_timestamp: string | null;
   is_graded: boolean;
-  overall_received_score?: number;
-  overall_feedback?: string;
   answers: Answer[];
 }
 
@@ -80,11 +78,6 @@ const GradeSubmission = () => {
               }
             });
             setGrades(existingGrades);
-            
-            // Initialize overall feedback if it exists
-            if (studentSubmission.overall_feedback) {
-              setOverallFeedback(studentSubmission.overall_feedback);
-            }
           }
         } else {
           throw new Error("Student submission not found");
