@@ -42,7 +42,7 @@ interface ExamData {
   num_enrolled_students: number;
   num_students_submitted: number;
   questions: Question[];
-  student_submissions: StudentSubmission[];
+  submissions: StudentSubmission[];
 }
 
 const AssignmentDetail = () => {
@@ -144,8 +144,8 @@ const AssignmentDetail = () => {
     ? (examData.num_students_submitted / examData.num_enrolled_students) * 100
     : 0;
 
-  const gradedCount = examData.student_submissions.filter(s => s.is_graded).length;
-  const totalSubmitted = examData.student_submissions.filter(s => s.is_submitted).length;
+  const gradedCount = examData.submissions.filter(s => s.is_graded).length;
+  const totalSubmitted = examData.submissions.filter(s => s.is_submitted).length;
 
   return (
     <DashboardLayout>
@@ -250,7 +250,7 @@ const AssignmentDetail = () => {
 
           <TabsContent value="submissions" className="space-y-4">
             <div className="grid gap-4">
-              {examData.student_submissions.map((student, index) => (
+              {examData.submissions.map((student, index) => (
                 <Card key={index} className="hover:shadow-lg transition-shadow">
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between">
