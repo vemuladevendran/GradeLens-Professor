@@ -163,9 +163,9 @@ const GradeSubmission = () => {
     }
 
     // Validate that all questions have been graded
-    const allGraded = submission?.answers.every((answer) => {
-      const questionId = answer.question_id;
-      return questionId && grades[questionId] && grades[questionId].received_weight !== undefined;
+    const allGraded = submission?.answers.every((answer, idx) => {
+      const questionId = answer.question_id || idx;
+      return grades[questionId] && grades[questionId].received_weight !== undefined;
     });
 
     if (!allGraded) {
@@ -177,17 +177,23 @@ const GradeSubmission = () => {
     try {
       // Calculate overall score
       const overall_received_score = submission?.answers.reduce(
-        (total, answer) => total + (grades[answer.question_id!]?.received_weight || 0),
+        (total, answer, idx) => {
+          const questionId = answer.question_id || idx;
+          return total + (grades[questionId]?.received_weight || 0);
+        },
         0
       ) || 0;
 
       // Format answers for API
-      const answers = submission?.answers.map((answer) => ({
-        question_id: answer.question_id!,
-        received_weight: grades[answer.question_id!]?.received_weight || 0,
-        feedback: grades[answer.question_id!]?.feedback || "",
-        is_graded: true,
-      })) || [];
+      const answers = submission?.answers.map((answer, idx) => {
+        const questionId = answer.question_id || idx;
+        return {
+          question_id: answer.question_id || questionId,
+          received_weight: grades[questionId]?.received_weight || 0,
+          feedback: grades[questionId]?.feedback || "",
+          is_graded: true,
+        };
+      }) || [];
 
       const isUpdate = submission?.is_graded;
       const endpoint = isUpdate 
