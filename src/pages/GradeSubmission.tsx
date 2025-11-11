@@ -54,34 +54,33 @@ const GradeSubmission = () => {
           headers: getAuthHeaders(),
         });
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch submission");
-        }
+      if (!response.ok) {
+        throw new Error("Failed to fetch submission");
+      }
 
-        const data = await response.json();
-        const studentSubmission = data.student_submissions.find(
-          (s: StudentSubmission) => s.student_name === decodeURIComponent(studentName)
-        );
+      const data = await response.json();
+      const studentSubmission = data.student_submissions.find(
+        (s: StudentSubmission) => s.student_name === decodeURIComponent(studentName)
+      );
 
-        if (studentSubmission) {
-          setSubmission(studentSubmission);
-          
-          // Initialize grades with existing data if already graded
-          if (studentSubmission.is_graded) {
-            const existingGrades: { [key: number]: GradeData } = {};
-            studentSubmission.answers.forEach((answer) => {
-              if (answer.question_id) {
-                existingGrades[answer.question_id] = {
-                  received_weight: answer.received_weight,
-                  feedback: answer.feedback || "",
-                };
-              }
-            });
-            setGrades(existingGrades);
-          }
-        } else {
-          throw new Error("Student submission not found");
+      if (studentSubmission) {
+        setSubmission(studentSubmission);
+        
+        // Initialize grades with existing data if already graded
+        if (studentSubmission.is_graded) {
+          const existingGrades: { [key: number]: GradeData } = {};
+          studentSubmission.answers.forEach((answer, idx) => {
+            const questionId = answer.question_id || idx;
+            existingGrades[questionId] = {
+              received_weight: answer.received_weight,
+              feedback: answer.feedback || "",
+            };
+          });
+          setGrades(existingGrades);
         }
+      } else {
+        throw new Error("Student submission not found");
+      }
       } catch (error) {
         console.error("Fetch submission error:", error);
         toast.error("Failed to load submission. Please try again.");
@@ -353,34 +352,56 @@ const GradeSubmission = () => {
                       </div>
                     </div>
                     
-                    <div className="grid gap-4 pt-4 border-t">
-                      <div className="grid gap-2">
-                        <Label htmlFor={`score-${index}`}>
-                          Score (Max: {answer.question_weight} points)
-                        </Label>
-                        <Input
-                          id={`score-${index}`}
-                          type="number"
-                          min="0"
-                          max={answer.question_weight}
-                          step="0.1"
-                          placeholder="Enter score"
-                          value={grades[questionId]?.received_weight || ""}
-                          onChange={(e) => handleGradeChange(questionId, "received_weight", e.target.value)}
-                        />
+                    {submission.is_graded && grades[questionId] ? (
+                      <div className="grid gap-4 pt-4 border-t bg-primary/5 p-4 rounded-lg">
+                        <div className="grid gap-2">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-base font-semibold">Score</Label>
+                            <Badge variant="default" className="text-base px-3 py-1">
+                              {grades[questionId].received_weight.toFixed(2)}/{answer.question_weight}
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        {grades[questionId].feedback && (
+                          <div className="grid gap-2">
+                            <Label className="text-base font-semibold">Feedback</Label>
+                            <div className="bg-background p-3 rounded-md border">
+                              <p className="text-sm whitespace-pre-wrap">{grades[questionId].feedback}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      
-                      <div className="grid gap-2">
-                        <Label htmlFor={`feedback-${index}`}>Feedback</Label>
-                        <Textarea
-                          id={`feedback-${index}`}
-                          placeholder="Enter feedback for the student"
-                          rows={4}
-                          value={grades[questionId]?.feedback || ""}
-                          onChange={(e) => handleGradeChange(questionId, "feedback", e.target.value)}
-                        />
+                    ) : (
+                      <div className="grid gap-4 pt-4 border-t">
+                        <div className="grid gap-2">
+                          <Label htmlFor={`score-${index}`}>
+                            Score (Max: {answer.question_weight} points)
+                          </Label>
+                          <Input
+                            id={`score-${index}`}
+                            type="number"
+                            min="0"
+                            max={answer.question_weight}
+                            step="0.1"
+                            placeholder="Enter score"
+                            value={grades[questionId]?.received_weight || ""}
+                            onChange={(e) => handleGradeChange(questionId, "received_weight", e.target.value)}
+                          />
+                        </div>
+                        
+                        <div className="grid gap-2">
+                          <Label htmlFor={`feedback-${index}`}>Feedback</Label>
+                          <Textarea
+                            id={`feedback-${index}`}
+                            placeholder="Enter feedback for the student"
+                            rows={4}
+                            value={grades[questionId]?.feedback || ""}
+                            onChange={(e) => handleGradeChange(questionId, "feedback", e.target.value)}
+                          />
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               );
@@ -388,7 +409,7 @@ const GradeSubmission = () => {
           </TabsContent>
         </Tabs>
 
-        {Object.keys(grades).length > 0 && (
+        {!submission.is_graded && Object.keys(grades).length > 0 && (
           <div className="flex justify-end gap-3">
             <Button 
               variant="outline" 

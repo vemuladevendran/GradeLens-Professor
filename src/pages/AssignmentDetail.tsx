@@ -24,6 +24,7 @@ interface Answer {
   question_weight: number;
   answer_text: string;
   received_weight: number;
+  feedback?: string;
 }
 
 interface StudentSubmission {
@@ -274,6 +275,12 @@ const AssignmentDetail = () => {
                           <Badge variant={student.is_graded ? "secondary" : "outline"}>
                             {student.is_graded ? "Graded" : "Not Graded"}
                           </Badge>
+                          {student.is_graded && student.answers && (
+                            <Badge variant="default" className="text-base px-3 py-1">
+                              {student.answers.reduce((sum, a) => sum + a.received_weight, 0).toFixed(1)}/
+                              {student.answers.reduce((sum, a) => sum + a.question_weight, 0)}
+                            </Badge>
+                          )}
                           {student.is_submitted && (
                             <Button 
                               variant="outline" 
