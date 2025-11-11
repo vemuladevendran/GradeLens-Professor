@@ -188,7 +188,7 @@ const GradeSubmission = () => {
       const answers = submission?.answers.map((answer, idx) => {
         const questionId = answer.question_id || idx;
         return {
-          question_id: answer.question_id || questionId,
+          question_id: answer.question_id,
           received_weight: grades[questionId]?.received_weight || 0,
           feedback: grades[questionId]?.feedback || "",
           is_graded: true,
