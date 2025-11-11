@@ -29,9 +29,11 @@ interface Answer {
 interface StudentSubmission {
   student_id?: number;
   student_name: string;
-  is_submitted: boolean;
-  submission_timestamp: string | null;
+  student_email?: string;
+  submitted_at: string | null;
   is_graded: boolean;
+  overall_received_score?: number;
+  overall_feedback?: string;
   answers: Answer[];
 }
 
@@ -255,21 +257,21 @@ const AssignmentDetail = () => {
                           </div>
                           <div>
                             <h4 className="font-semibold">{student.student_name}</h4>
-                            {student.submission_timestamp && (
+                            {student.submitted_at && (
                               <p className="text-sm text-muted-foreground">
-                                Submitted: {new Date(student.submission_timestamp).toLocaleString()}
+                                Submitted: {new Date(student.submitted_at).toLocaleString()}
                               </p>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <Badge variant={student.is_submitted ? "default" : "outline"}>
-                            {student.is_submitted ? "Submitted" : "Not Submitted"}
+                          <Badge variant={student.submitted_at ? "default" : "outline"}>
+                            {student.submitted_at ? "Submitted" : "Not Submitted"}
                           </Badge>
                           <Badge variant={student.is_graded ? "secondary" : "outline"}>
                             {student.is_graded ? "Graded" : "Not Graded"}
                           </Badge>
-                          {student.is_submitted && (
+                          {student.submitted_at && (
                             <Button 
                               variant="outline" 
                               size="sm"
