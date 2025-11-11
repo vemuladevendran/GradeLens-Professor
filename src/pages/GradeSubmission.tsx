@@ -246,10 +246,13 @@ const GradeSubmission = () => {
     );
   }
 
-  const totalScore = submission.answers.reduce(
-    (sum, answer) => sum + (grades[answer.question_id!]?.received_weight || 0), 
-    0
-  );
+  // Calculate total score - if already graded, use answer data, otherwise use grades state
+  const totalScore = submission.is_graded && Object.keys(grades).length === 0
+    ? submission.answers.reduce((sum, answer) => sum + answer.received_weight, 0)
+    : submission.answers.reduce((sum, answer) => {
+        const questionId = answer.question_id || submission.answers.indexOf(answer);
+        return sum + (grades[questionId]?.received_weight || 0);
+      }, 0);
   const maxScore = submission.answers.reduce((sum, a) => sum + a.question_weight, 0);
 
   return (
@@ -352,56 +355,34 @@ const GradeSubmission = () => {
                       </div>
                     </div>
                     
-                    {submission.is_graded && grades[questionId] ? (
-                      <div className="grid gap-4 pt-4 border-t bg-primary/5 p-4 rounded-lg">
-                        <div className="grid gap-2">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-base font-semibold">Score</Label>
-                            <Badge variant="default" className="text-base px-3 py-1">
-                              {grades[questionId].received_weight.toFixed(2)}/{answer.question_weight}
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        {grades[questionId].feedback && (
-                          <div className="grid gap-2">
-                            <Label className="text-base font-semibold">Feedback</Label>
-                            <div className="bg-background p-3 rounded-md border">
-                              <p className="text-sm whitespace-pre-wrap">{grades[questionId].feedback}</p>
-                            </div>
-                          </div>
-                        )}
+                    <div className="grid gap-4 pt-4 border-t">
+                      <div className="grid gap-2">
+                        <Label htmlFor={`score-${index}`}>
+                          Score (Max: {answer.question_weight} points)
+                        </Label>
+                        <Input
+                          id={`score-${index}`}
+                          type="number"
+                          min="0"
+                          max={answer.question_weight}
+                          step="0.1"
+                          placeholder="Enter score"
+                          value={grades[questionId]?.received_weight ?? ""}
+                          onChange={(e) => handleGradeChange(questionId, "received_weight", e.target.value)}
+                        />
                       </div>
-                    ) : (
-                      <div className="grid gap-4 pt-4 border-t">
-                        <div className="grid gap-2">
-                          <Label htmlFor={`score-${index}`}>
-                            Score (Max: {answer.question_weight} points)
-                          </Label>
-                          <Input
-                            id={`score-${index}`}
-                            type="number"
-                            min="0"
-                            max={answer.question_weight}
-                            step="0.1"
-                            placeholder="Enter score"
-                            value={grades[questionId]?.received_weight || ""}
-                            onChange={(e) => handleGradeChange(questionId, "received_weight", e.target.value)}
-                          />
-                        </div>
-                        
-                        <div className="grid gap-2">
-                          <Label htmlFor={`feedback-${index}`}>Feedback</Label>
-                          <Textarea
-                            id={`feedback-${index}`}
-                            placeholder="Enter feedback for the student"
-                            rows={4}
-                            value={grades[questionId]?.feedback || ""}
-                            onChange={(e) => handleGradeChange(questionId, "feedback", e.target.value)}
-                          />
-                        </div>
+                      
+                      <div className="grid gap-2">
+                        <Label htmlFor={`feedback-${index}`}>Feedback</Label>
+                        <Textarea
+                          id={`feedback-${index}`}
+                          placeholder="Enter feedback for the student"
+                          rows={4}
+                          value={grades[questionId]?.feedback ?? ""}
+                          onChange={(e) => handleGradeChange(questionId, "feedback", e.target.value)}
+                        />
                       </div>
-                    )}
+                    </div>
                   </CardContent>
                 </Card>
               );
@@ -409,7 +390,7 @@ const GradeSubmission = () => {
           </TabsContent>
         </Tabs>
 
-        {!submission.is_graded && Object.keys(grades).length > 0 && (
+        {Object.keys(grades).length > 0 && (
           <div className="flex justify-end gap-3">
             <Button 
               variant="outline" 
@@ -427,7 +408,7 @@ const GradeSubmission = () => {
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4 mr-2" />
-                  Submit Grades
+                  {submission.is_graded ? "Update Grades" : "Submit Grades"}
                 </>
               )}
             </Button>
