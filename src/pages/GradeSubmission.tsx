@@ -69,12 +69,13 @@ const GradeSubmission = () => {
         // Initialize grades with existing data if already graded
         if (studentSubmission.is_graded) {
           const existingGrades: { [key: number]: GradeData } = {};
-          studentSubmission.answers.forEach((answer, idx) => {
-            const questionId = answer.question_id || idx;
-            existingGrades[questionId] = {
-              received_weight: answer.received_weight,
-              feedback: answer.feedback || "",
-            };
+          studentSubmission.answers.forEach((answer) => {
+            if (answer.question_id) {
+              existingGrades[answer.question_id] = {
+                received_weight: answer.received_weight,
+                feedback: answer.feedback || "",
+              };
+            }
           });
           setGrades(existingGrades);
         }
@@ -163,9 +164,8 @@ const GradeSubmission = () => {
     }
 
     // Validate that all questions have been graded
-    const allGraded = submission?.answers.every((answer, idx) => {
-      const questionId = answer.question_id || idx;
-      return grades[questionId] && grades[questionId].received_weight !== undefined;
+    const allGraded = submission?.answers.every((answer) => {
+      return answer.question_id && grades[answer.question_id] && grades[answer.question_id].received_weight !== undefined;
     });
 
     if (!allGraded) {
@@ -177,23 +177,21 @@ const GradeSubmission = () => {
     try {
       // Calculate overall score
       const overall_received_score = submission?.answers.reduce(
-        (total, answer, idx) => {
-          const questionId = answer.question_id || idx;
-          return total + (grades[questionId]?.received_weight || 0);
+        (total, answer) => {
+          return answer.question_id ? total + (grades[answer.question_id]?.received_weight || 0) : total;
         },
         0
       ) || 0;
 
       // Format answers for API
-      const answers = submission?.answers.map((answer, idx) => {
-        const questionId = answer.question_id || idx;
-        return {
-          question_id: answer.question_id,
-          received_weight: grades[questionId]?.received_weight || 0,
-          feedback: grades[questionId]?.feedback || "",
+      const answers = submission?.answers
+        .filter((answer) => answer.question_id)
+        .map((answer) => ({
+          question_id: answer.question_id!,
+          received_weight: grades[answer.question_id!]?.received_weight || 0,
+          feedback: grades[answer.question_id!]?.feedback || "",
           is_graded: true,
-        };
-      }) || [];
+        })) || [];
 
       const isUpdate = submission?.is_graded;
       const endpoint = isUpdate 
@@ -258,8 +256,7 @@ const GradeSubmission = () => {
   const totalScore = submission.is_graded && Object.keys(grades).length === 0
     ? submission.answers.reduce((sum, answer) => sum + answer.received_weight, 0)
     : submission.answers.reduce((sum, answer) => {
-        const questionId = answer.question_id || submission.answers.indexOf(answer);
-        return sum + (grades[questionId]?.received_weight || 0);
+        return answer.question_id ? sum + (grades[answer.question_id]?.received_weight || 0) : sum;
       }, 0);
   const maxScore = submission.answers.reduce((sum, a) => sum + a.question_weight, 0);
 
@@ -328,9 +325,10 @@ const GradeSubmission = () => {
 
           <TabsContent value="detailed" className="space-y-4">
             {submission.answers.map((answer, index) => {
-              const questionId = answer.question_id || index;
+              if (!answer.question_id) return null;
+              const questionId = answer.question_id;
               return (
-                <Card key={index}>
+                <Card key={questionId}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
