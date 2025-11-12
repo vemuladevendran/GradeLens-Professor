@@ -1,171 +1,356 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ClipboardCheck, User, FileText } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ClipboardCheck, User, FileText, Download, BarChart3, BookOpen } from "lucide-react";
+import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
+import { toast } from "sonner";
 
-// Dummy data
-const dummyCourses = [
-  { id: "1", name: "Introduction to Computer Science" },
-  { id: "2", name: "Advanced Algorithms" },
-  { id: "3", name: "Web Development" },
-];
+interface ExamData {
+  id: number;
+  exam_name: string;
+  course_name: string;
+  overall_score: number;
+  num_questions: number;
+  num_enrolled_students: number;
+  num_students_submitted: number;
+}
 
-const dummyAssignments: Record<string, any[]> = {
-  "1": [
-    { id: "a1", name: "Midterm Exam", submissions: 45 },
-    { id: "a2", name: "Programming Assignment 1", submissions: 50 },
-  ],
-  "2": [
-    { id: "a3", name: "Data Structures Quiz", submissions: 28 },
-  ],
-  "3": [
-    { id: "a4", name: "Final Project", submissions: 40 },
-  ],
-};
+interface StudentSubmission {
+  student_id: number;
+  student_name: string;
+  is_submitted: boolean;
+  submission_timestamp: string | null;
+  is_graded: boolean;
+  answers: Array<{
+    question_id: number;
+    question: string;
+    question_weight: number;
+    answer_text: string;
+    received_weight: number;
+    feedback?: string;
+  }>;
+}
 
-const dummyStudents: Record<string, any[]> = {
-  "a1": [
-    { id: "s1", name: "Alice Johnson", submittedAt: "2025-10-28 14:30", status: "pending" },
-    { id: "s2", name: "Bob Smith", submittedAt: "2025-10-28 15:45", status: "graded" },
-    { id: "s3", name: "Charlie Brown", submittedAt: "2025-10-29 09:20", status: "pending" },
-    { id: "s4", name: "Diana Prince", submittedAt: "2025-10-29 11:15", status: "pending" },
-  ],
-  "a2": [
-    { id: "s5", name: "Eve Wilson", submittedAt: "2025-10-27 16:00", status: "graded" },
-    { id: "s6", name: "Frank Miller", submittedAt: "2025-10-28 10:30", status: "pending" },
-  ],
-  "a3": [
-    { id: "s7", name: "Grace Lee", submittedAt: "2025-10-29 13:45", status: "pending" },
-    { id: "s8", name: "Henry Ford", submittedAt: "2025-10-29 14:20", status: "graded" },
-  ],
-  "a4": [
-    { id: "s9", name: "Ivy Chen", submittedAt: "2025-10-30 08:00", status: "pending" },
-  ],
-};
+interface ExamSubmissionsData {
+  exam_name: string;
+  course_name: string;
+  num_enrolled_students: number;
+  num_students_submitted: number;
+  questions: Array<{
+    id: number;
+    question: string;
+    question_weight: number;
+    min_words: number;
+  }>;
+  student_submissions: StudentSubmission[];
+}
 
 const Grading = () => {
   const navigate = useNavigate();
-  const [selectedCourse, setSelectedCourse] = useState("");
-  const [selectedAssignment, setSelectedAssignment] = useState("");
+  const [exams, setExams] = useState<ExamData[]>([]);
+  const [selectedExam, setSelectedExam] = useState<string>("");
+  const [submissionsData, setSubmissionsData] = useState<ExamSubmissionsData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
 
-  const assignments = selectedCourse ? dummyAssignments[selectedCourse] || [] : [];
-  const students = selectedAssignment ? dummyStudents[selectedAssignment] || [] : [];
+  useEffect(() => {
+    fetchExams();
+  }, []);
 
-  const handleGradeStudent = (studentId: string, studentName: string) => {
-    navigate(`/grade/${studentId}`, { state: { studentName, assignmentId: selectedAssignment } });
+  useEffect(() => {
+    if (selectedExam) {
+      fetchSubmissions(selectedExam);
+    } else {
+      setSubmissionsData(null);
+    }
+  }, [selectedExam]);
+
+  const fetchExams = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.getAllExams, {
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch exams");
+      }
+
+      const data = await response.json();
+      setExams(data);
+    } catch (error) {
+      console.error("Error fetching exams:", error);
+      toast.error("Failed to load exams");
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const fetchSubmissions = async (examId: string) => {
+    setIsLoadingSubmissions(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.getExamSubmissions(examId), {
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch submissions");
+      }
+
+      const data = await response.json();
+      setSubmissionsData(data);
+    } catch (error) {
+      console.error("Error fetching submissions:", error);
+      toast.error("Failed to load submissions");
+    } finally {
+      setIsLoadingSubmissions(false);
+    }
+  };
+
+  const handleGradeStudent = (studentId: number, studentName: string, courseId: number) => {
+    navigate(`/grade/${courseId}/${selectedExam}/${studentId}/${encodeURIComponent(studentName)}`);
+  };
+
+  const handleExportGrades = () => {
+    if (!submissionsData || !submissionsData.student_submissions.length) {
+      toast.error("No data to export");
+      return;
+    }
+
+    const selectedExamData = exams.find(e => e.id.toString() === selectedExam);
+    if (!selectedExamData) return;
+
+    // Create CSV content
+    let csvContent = "Student Name,Exam Name,Course Name,Total Score,Max Score,Percentage,Status\n";
+    
+    submissionsData.student_submissions.forEach((student) => {
+      if (student.is_submitted) {
+        const totalReceived = student.answers.reduce((sum, ans) => sum + ans.received_weight, 0);
+        const percentage = ((totalReceived / selectedExamData.overall_score) * 100).toFixed(2);
+        const status = student.is_graded ? "Graded" : "Pending";
+        
+        csvContent += `"${student.student_name}","${submissionsData.exam_name}","${submissionsData.course_name}",${totalReceived},${selectedExamData.overall_score},${percentage}%,${status}\n`;
+      }
+    });
+
+    // Download CSV
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${submissionsData.exam_name}_grades.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success("Grades exported successfully!");
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const selectedExamData = exams.find(e => e.id.toString() === selectedExam);
+  const gradedCount = submissionsData?.student_submissions.filter(s => s.is_graded).length || 0;
+  const pendingCount = submissionsData ? submissionsData.num_students_submitted - gradedCount : 0;
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">AI Grading</h1>
+          <h1 className="text-3xl font-bold">All Assignments</h1>
           <p className="text-muted-foreground">Review and grade student submissions with AI assistance</p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Assignment</CardTitle>
-            <CardDescription>Choose a course and assignment to view submissions</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Course</label>
-                <Select value={selectedCourse} onValueChange={(value) => {
-                  setSelectedCourse(value);
-                  setSelectedAssignment("");
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a course" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {dummyCourses.map((course) => (
-                      <SelectItem key={course.id} value={course.id}>
-                        {course.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Assignment</label>
-                <Select 
-                  value={selectedAssignment} 
-                  onValueChange={setSelectedAssignment}
-                  disabled={!selectedCourse}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an assignment" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {assignments.map((assignment) => (
-                      <SelectItem key={assignment.id} value={assignment.id}>
-                        {assignment.name} ({assignment.submissions} submissions)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {students.length > 0 ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Student Submissions</h2>
-              <Badge variant="outline">{students.length} total</Badge>
-            </div>
-            <div className="grid gap-4">
-              {students.map((student) => (
-                <Card key={student.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="py-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-primary/10 rounded-full">
-                          <User className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">{student.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Submitted: {student.submittedAt}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge variant={student.status === "graded" ? "secondary" : "default"}>
-                          {student.status}
-                        </Badge>
-                        <Button 
-                          onClick={() => handleGradeStudent(student.id, student.name)}
-                        >
-                          <ClipboardCheck className="h-4 w-4 mr-2" />
-                          {student.status === "graded" ? "View Grades" : "Grade Now"}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        ) : selectedAssignment ? (
+        {exams.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No submissions yet</h3>
+              <h3 className="text-lg font-semibold mb-2">No exams yet</h3>
               <p className="text-muted-foreground text-center">
-                Students haven't submitted their work for this assignment.
+                Create an exam to start grading submissions.
               </p>
             </CardContent>
           </Card>
-        ) : null}
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Exams</CardTitle>
+                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{exams.length}</div>
+                </CardContent>
+              </Card>
+              {selectedExamData && (
+                <>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+                      <User className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{selectedExamData.num_enrolled_students}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Submitted</CardTitle>
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{selectedExamData.num_students_submitted}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Graded</CardTitle>
+                      <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{gradedCount}</div>
+                      <p className="text-xs text-muted-foreground">{pendingCount} pending</p>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </div>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Select Exam</CardTitle>
+                    <CardDescription>Choose an exam to view and grade submissions</CardDescription>
+                  </div>
+                  {submissionsData && submissionsData.student_submissions.length > 0 && (
+                    <Button onClick={handleExportGrades} variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export Grades
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3">
+                  {exams.map((exam) => (
+                    <Card 
+                      key={exam.id} 
+                      className={`cursor-pointer transition-all ${selectedExam === exam.id.toString() ? 'border-primary shadow-md' : 'hover:shadow-md'}`}
+                      onClick={() => setSelectedExam(exam.id.toString())}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-semibold">{exam.exam_name}</h3>
+                            <p className="text-sm text-muted-foreground">{exam.course_name}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="text-sm font-medium">{exam.num_students_submitted}/{exam.num_enrolled_students}</p>
+                              <p className="text-xs text-muted-foreground">Submitted</p>
+                            </div>
+                            <Badge variant="outline">{exam.num_questions} questions</Badge>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {isLoadingSubmissions ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-24 w-full" />
+                ))}
+              </div>
+            ) : submissionsData && submissionsData.student_submissions.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold">Student Submissions</h2>
+                  <Badge variant="outline">{submissionsData.num_students_submitted} submitted</Badge>
+                </div>
+                <div className="grid gap-4">
+                  {submissionsData.student_submissions.map((student) => {
+                    if (!student.is_submitted) return null;
+                    
+                    const totalReceived = student.answers.reduce((sum, ans) => sum + ans.received_weight, 0);
+                    const percentage = selectedExamData ? ((totalReceived / selectedExamData.overall_score) * 100).toFixed(1) : "0";
+                    
+                    return (
+                      <Card key={student.student_id} className="hover:shadow-lg transition-shadow">
+                        <CardContent className="py-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="p-3 bg-primary/10 rounded-full">
+                                <User className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold">{student.student_name}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {student.submission_timestamp && 
+                                    `Submitted: ${new Date(student.submission_timestamp).toLocaleString()}`}
+                                </p>
+                                {student.is_graded && (
+                                  <p className="text-sm font-medium mt-1">
+                                    Score: {totalReceived.toFixed(2)}/{selectedExamData?.overall_score} ({percentage}%)
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <Badge variant={student.is_graded ? "secondary" : "default"}>
+                                {student.is_graded ? "Graded" : "Pending"}
+                              </Badge>
+                              <Button 
+                                onClick={() => {
+                                  const exam = exams.find(e => e.id.toString() === selectedExam);
+                                  if (exam) {
+                                    // Extract course ID from the exam data - we need to add this to the API response
+                                    // For now, using exam.id as a placeholder
+                                    navigate(`/assignment/${selectedExam}`);
+                                  }
+                                }}
+                              >
+                                <ClipboardCheck className="h-4 w-4 mr-2" />
+                                {student.is_graded ? "View Grades" : "Grade Now"}
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : selectedExam ? (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No submissions yet</h3>
+                  <p className="text-muted-foreground text-center">
+                    Students haven't submitted their work for this exam.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : null}
+          </>
+        )}
       </div>
     </DashboardLayout>
   );
