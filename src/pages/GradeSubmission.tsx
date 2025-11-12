@@ -69,13 +69,12 @@ const GradeSubmission = () => {
         // Initialize grades with existing data if already graded
         if (studentSubmission.is_graded) {
           const existingGrades: { [key: number]: GradeData } = {};
-          studentSubmission.answers.forEach((answer) => {
-            if (answer.question_id) {
-              existingGrades[answer.question_id] = {
-                received_weight: answer.received_weight,
-                feedback: answer.feedback || "",
-              };
-            }
+          studentSubmission.answers.forEach((answer, idx) => {
+            const questionId = answer.question_id || idx;
+            existingGrades[questionId] = {
+              received_weight: answer.received_weight,
+              feedback: answer.feedback || "",
+            };
           });
           setGrades(existingGrades);
         }
@@ -163,13 +162,19 @@ const GradeSubmission = () => {
       return;
     }
 
-    // Validate that all questions have been graded
-    const allGraded = submission?.answers.every((answer) => {
-      return answer.question_id && grades[answer.question_id] && grades[answer.question_id].received_weight !== undefined;
+    // Validate that all questions have been graded and have question_id
+    const allGraded = submission?.answers.every((answer, idx) => {
+      if (!answer.question_id) return false; // Must have question_id to save
+      return grades[answer.question_id] && grades[answer.question_id].received_weight !== undefined;
     });
 
     if (!allGraded) {
-      toast.error("Please provide grades for all questions");
+      const hasQuestionIds = submission?.answers.every(answer => answer.question_id);
+      if (!hasQuestionIds) {
+        toast.error("Please use Auto Grade first to get question IDs from the backend");
+      } else {
+        toast.error("Please provide grades for all questions");
+      }
       return;
     }
 
@@ -177,8 +182,9 @@ const GradeSubmission = () => {
     try {
       // Calculate overall score
       const overall_received_score = submission?.answers.reduce(
-        (total, answer) => {
-          return answer.question_id ? total + (grades[answer.question_id]?.received_weight || 0) : total;
+        (total, answer, idx) => {
+          const questionId = answer.question_id || idx;
+          return total + (grades[questionId]?.received_weight || 0);
         },
         0
       ) || 0;
@@ -255,8 +261,9 @@ const GradeSubmission = () => {
   // Calculate total score - if already graded, use answer data, otherwise use grades state
   const totalScore = submission.is_graded && Object.keys(grades).length === 0
     ? submission.answers.reduce((sum, answer) => sum + answer.received_weight, 0)
-    : submission.answers.reduce((sum, answer) => {
-        return answer.question_id ? sum + (grades[answer.question_id]?.received_weight || 0) : sum;
+    : submission.answers.reduce((sum, answer, idx) => {
+        const questionId = answer.question_id || idx;
+        return sum + (grades[questionId]?.received_weight || 0);
       }, 0);
   const maxScore = submission.answers.reduce((sum, a) => sum + a.question_weight, 0);
 
@@ -325,10 +332,9 @@ const GradeSubmission = () => {
 
           <TabsContent value="detailed" className="space-y-4">
             {submission.answers.map((answer, index) => {
-              if (!answer.question_id) return null;
-              const questionId = answer.question_id;
+              const questionId = answer.question_id || index;
               return (
-                <Card key={questionId}>
+                <Card key={index}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
