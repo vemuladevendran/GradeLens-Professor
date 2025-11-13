@@ -85,32 +85,45 @@ const CourseNotes = () => {
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      
-      // Validate file size (max 50MB)
-      const maxSize = 50 * 1024 * 1024; // 50MB in bytes
-      if (file.size > maxSize) {
-        toast.error(`File size exceeds 50MB limit. Selected file is ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
-        e.target.value = ""; // Reset file input
-        return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 50MB)
+    const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+    if (file.size > maxSize) {
+      toast.error(`File size exceeds 50MB limit. Selected file is ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+      e.target.value = ""; // Reset file input
+      return;
+    }
+
+    // Some browsers mark PDFs as application/octet-stream; verify by magic header
+    const verifyPdfHeader = async () => {
+      if (file.type === 'application/pdf') return true;
+      try {
+        const header = await file.slice(0, 5).text();
+        return header.startsWith('%PDF-');
+      } catch (err) {
+        console.warn('Unable to read file header for type verification', err);
+        return false;
       }
-      
-      // Validate file type (PDF only)
-      if (file.type !== 'application/pdf') {
+    };
+
+    (async () => {
+      const isPdf = await verifyPdfHeader();
+      if (!isPdf) {
         toast.error(`Only PDF files are supported. Selected file type: ${file.type || 'unknown'}`);
         e.target.value = ""; // Reset file input
         return;
       }
-      
+
       console.log("File selected:", {
         name: file.name,
         size: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
-        type: file.type
+        type: file.type || 'detected by header'
       });
-      
+
       setSelectedFile(file);
-    }
+    })();
   };
 
   const handleUploadNote = async () => {
@@ -133,6 +146,11 @@ const CourseNotes = () => {
       formData.append("file", selectedFile);
 
       const xhr = new XMLHttpRequest();
+
+      // Debug ready state changes
+      xhr.addEventListener("readystatechange", () => {
+        console.log("XHR state:", xhr.readyState, "status:", xhr.status);
+      });
 
       // Track upload progress
       xhr.upload.addEventListener("progress", (e) => {
@@ -181,7 +199,7 @@ const CourseNotes = () => {
       });
 
       // Handle errors
-      xhr.addEventListener("error", (e) => {
+      xhr.addEventListener("error", async (e) => {
         console.error("Upload network error:", {
           error: e,
           status: xhr.status,
@@ -189,10 +207,51 @@ const CourseNotes = () => {
           responseText: xhr.responseText,
           readyState: xhr.readyState
         });
-        toast.error("Network error occurred during upload. Please check your connection and try again.");
-        setIsUploading(false);
-        setUploadProgress(0);
-        reject(new Error(`Upload failed: ${xhr.statusText || 'Network error'}`));
+
+        // Fallback: try fetch-based upload once
+        try {
+          toast("Network issue detected. Retrying upload...");
+          setUploadProgress(0);
+          const token = localStorage.getItem("authToken");
+          const uploadUrl = API_ENDPOINTS.uploadNote(course.id.toString());
+          const res = await fetch(uploadUrl, {
+            method: "POST",
+            headers: {
+              ...(token ? { Authorization: `Token ${token}` } : {}),
+              // Let the browser set proper multipart boundary (do not set Content-Type)
+            } as any,
+            body: formData,
+          });
+
+          if (res.ok) {
+            toast.success("Note uploaded successfully");
+            await fetchNotes();
+            setNoteName("");
+            setSelectedFile(null);
+            setUploadProgress(0);
+            setIsDialogOpen(false);
+            setIsUploading(false);
+            const text = await res.text();
+            return resolve(text);
+          } else {
+            let msg = `Upload failed (Status: ${res.status})`;
+            try {
+              const data = await res.json();
+              msg = data.message || data.error || msg;
+            } catch {}
+            console.error("Fallback upload failed:", res.status, await res.text().catch(() => ""));
+            toast.error(msg);
+            setIsUploading(false);
+            setUploadProgress(0);
+            return reject(new Error(msg));
+          }
+        } catch (fallbackErr) {
+          console.error("Fallback upload error:", fallbackErr);
+          toast.error("Network error occurred during upload. Please try again.");
+          setIsUploading(false);
+          setUploadProgress(0);
+          return reject(new Error(`Upload failed: ${xhr.statusText || 'Network error'}`));
+        }
       });
 
       // Handle abort
