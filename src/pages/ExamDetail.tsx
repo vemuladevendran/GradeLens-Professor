@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
 
@@ -28,6 +28,7 @@ const ExamDetail = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [rubric, setRubric] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
 
   const addQuestion = () => {
     const newQuestion: Question = {
@@ -47,6 +48,52 @@ const ExamDetail = () => {
 
   const deleteQuestion = (id: string) => {
     setQuestions(questions.filter(q => q.id !== id));
+  };
+
+  const handlePdfUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || file.type !== "application/pdf") {
+      toast.error("Please upload a valid PDF file");
+      return;
+    }
+
+    setIsUploadingPdf(true);
+    try {
+      // Create a temporary file path for parsing
+      const formData = new FormData();
+      formData.append("file", file);
+
+      // Read file as text to parse questions
+      const text = await file.text();
+      
+      // Simple regex pattern to extract questions
+      // Matches "Question X :" followed by the question text until the next "Question" or end
+      const questionPattern = /Question\s+\d+\s*:\s*\n(.+?)(?=Question\s+\d+\s*:|$)/gs;
+      const matches = [...text.matchAll(questionPattern)];
+
+      if (matches.length === 0) {
+        toast.error("No questions found in the PDF. Please check the format.");
+        return;
+      }
+
+      const extractedQuestions: Question[] = matches.map((match, index) => ({
+        id: Date.now().toString() + index,
+        question: match[1].trim(),
+        question_weight: 10,
+        min_words: 50,
+      }));
+
+      setQuestions([...questions, ...extractedQuestions]);
+      toast.success(`Successfully extracted ${extractedQuestions.length} questions from PDF`);
+      
+      // Reset the file input
+      event.target.value = "";
+    } catch (error) {
+      console.error("PDF parsing error:", error);
+      toast.error("Failed to parse PDF. Please check the file format.");
+    } finally {
+      setIsUploadingPdf(false);
+    }
   };
 
   const saveExam = async () => {
@@ -162,10 +209,27 @@ const ExamDetail = () => {
                   Add questions for this exam
                 </CardDescription>
               </div>
-              <Button onClick={addQuestion}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Question
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={addQuestion} variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Question
+                </Button>
+                <Button 
+                  variant="outline"
+                  disabled={isUploadingPdf}
+                  onClick={() => document.getElementById('pdf-upload')?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {isUploadingPdf ? "Uploading..." : "Upload from PDF"}
+                </Button>
+                <input
+                  id="pdf-upload"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handlePdfUpload}
+                  className="hidden"
+                />
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
