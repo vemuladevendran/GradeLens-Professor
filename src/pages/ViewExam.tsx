@@ -9,6 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Save, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Question {
   id?: number;
@@ -43,6 +53,9 @@ const ViewExam = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [showEditWarning, setShowEditWarning] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchExam = async () => {
@@ -101,6 +114,43 @@ const ViewExam = () => {
 
   const deleteQuestion = (index: number) => {
     setQuestions(questions.filter((_, i) => i !== index));
+  };
+
+  const handleEditClick = () => {
+    setShowEditWarning(true);
+  };
+
+  const confirmEdit = () => {
+    setIsEditMode(true);
+    setShowEditWarning(false);
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.deleteExam(courseId!, examId!), {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete exam");
+      }
+
+      const data = await response.json();
+      toast.success(data.message || "Exam deleted successfully");
+      navigate(`/course/${courseId}/assignments`, { state: { course } });
+    } catch (error) {
+      console.error("Delete exam error:", error);
+      toast.error("Failed to delete exam");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
   };
 
   const saveExam = async () => {
@@ -191,10 +241,16 @@ const ViewExam = () => {
             </div>
             <div className="flex gap-3">
               {!isEditMode ? (
-                <Button onClick={() => setIsEditMode(true)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Exam
-                </Button>
+                <>
+                  <Button variant="destructive" onClick={handleDeleteClick}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Exam
+                  </Button>
+                  <Button onClick={handleEditClick}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Exam
+                  </Button>
+                </>
               ) : (
                 <>
                   <Button variant="outline" onClick={() => setIsEditMode(false)} disabled={isSaving}>
@@ -366,6 +422,46 @@ const ViewExam = () => {
           </Card>
         )}
       </div>
+
+      <AlertDialog open={showEditWarning} onOpenChange={setShowEditWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Warning: Editing Will Delete Submissions</AlertDialogTitle>
+            <AlertDialogDescription>
+              If you edit this exam, all student submissions under this exam will be permanently deleted. 
+              This action cannot be undone. Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmEdit} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Continue Editing
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Exam</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this exam? This will permanently delete the exam and all related submissions. 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete} 
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete Exam"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

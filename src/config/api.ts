@@ -8,6 +8,7 @@ export const API_ENDPOINTS = {
   createExam: (courseId: string) => `${API_BASE_URL}/api/courses/${courseId}/create-exam/`,
   getExams: (courseId: string) => `${API_BASE_URL}/api/courses/${courseId}/exams/`,
   updateExam: (courseId: string, examId: string) => `${API_BASE_URL}/api/courses/${courseId}/exams/${examId}/edit/`,
+  deleteExam: (courseId: string, examId: string) => `${API_BASE_URL}/api/courses/${courseId}/exams/${examId}/delete/`,
   getAllExams: `${API_BASE_URL}/api/professor/exams/`,
   getExamSubmissions: (examId: string) => `${API_BASE_URL}/api/professor/exams/${examId}/submissions/`,
   uploadNote: (courseId: string) => `${API_BASE_URL}/api/courses/${courseId}/upload-note/`,
