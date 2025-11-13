@@ -78,14 +78,20 @@ const ExamDetail = () => {
         const pageText = textContent.items
           .map((item: any) => item.str)
           .join(" ");
-        fullText += pageText + "\n";
+        fullText += pageText + " ";
       }
+
+      console.log("Extracted PDF text:", fullText);
 
       // Improved regex pattern to extract questions
       // Matches "Question X :" followed by the question text until the next "Question" or end
-      // More flexible with whitespace and line breaks
-      const questionPattern = /Question\s+(\d+)\s*:\s*([\s\S]*?)(?=Question\s+\d+\s*:|$)/gi;
+      const questionPattern = /Question\s+(\d+)\s*:\s*([^]*?)(?=Question\s+\d+\s*:|$)/gi;
       const matches = [...fullText.matchAll(questionPattern)];
+
+      console.log(`Found ${matches.length} questions in PDF`);
+      matches.forEach((match, i) => {
+        console.log(`Question ${i + 1}:`, match[2].substring(0, 100));
+      });
 
       if (matches.length === 0) {
         toast.error("No questions found in the PDF. Please check the format.");
