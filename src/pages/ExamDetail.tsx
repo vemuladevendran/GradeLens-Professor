@@ -9,6 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Save, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface Question {
   id: string;
@@ -59,29 +63,48 @@ const ExamDetail = () => {
 
     setIsUploadingPdf(true);
     try {
-      // Create a temporary file path for parsing
-      const formData = new FormData();
-      formData.append("file", file);
-
-      // Read file as text to parse questions
-      const text = await file.text();
+      // Read PDF file as ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
       
-      // Simple regex pattern to extract questions
+      // Load the PDF document
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      // Extract text from all pages
+      let fullText = "";
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(" ");
+        fullText += pageText + "\n";
+      }
+
+      // Improved regex pattern to extract questions
       // Matches "Question X :" followed by the question text until the next "Question" or end
-      const questionPattern = /Question\s+\d+\s*:\s*\n(.+?)(?=Question\s+\d+\s*:|$)/gs;
-      const matches = [...text.matchAll(questionPattern)];
+      // More flexible with whitespace and line breaks
+      const questionPattern = /Question\s+(\d+)\s*:\s*([\s\S]*?)(?=Question\s+\d+\s*:|$)/gi;
+      const matches = [...fullText.matchAll(questionPattern)];
 
       if (matches.length === 0) {
         toast.error("No questions found in the PDF. Please check the format.");
         return;
       }
 
-      const extractedQuestions: Question[] = matches.map((match, index) => ({
-        id: Date.now().toString() + index,
-        question: match[1].trim(),
-        question_weight: 10,
-        min_words: 50,
-      }));
+      const extractedQuestions: Question[] = matches.map((match, index) => {
+        // Clean up the question text: remove extra whitespace and normalize
+        const questionText = match[2]
+          .trim()
+          .replace(/\s+/g, ' ')
+          .replace(/\s+([?.!,])/g, '$1');
+
+        return {
+          id: Date.now().toString() + index,
+          question: questionText,
+          question_weight: 10,
+          min_words: 50,
+        };
+      });
 
       setQuestions([...questions, ...extractedQuestions]);
       toast.success(`Successfully extracted ${extractedQuestions.length} questions from PDF`);
@@ -90,7 +113,7 @@ const ExamDetail = () => {
       event.target.value = "";
     } catch (error) {
       console.error("PDF parsing error:", error);
-      toast.error("Failed to parse PDF. Please check the file format.");
+      toast.error("Failed to parse PDF. Please try a different file or check the format.");
     } finally {
       setIsUploadingPdf(false);
     }
