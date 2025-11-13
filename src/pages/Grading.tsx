@@ -502,7 +502,7 @@ const Grading = () => {
                   {/* Top Performers Bar Chart */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>Top 10 Performers</CardTitle>
+                      <CardTitle>Top 5 Performers</CardTitle>
                       <CardDescription>Highest scoring students</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -516,19 +516,23 @@ const Grading = () => {
                         className="h-[300px]"
                       >
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={analyticsData.scores.slice(0, 10)}>
-                            <CartesianGrid strokeDasharray="3 3" />
+                          <BarChart data={analyticsData.scores.slice(0, 5)}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                             <XAxis 
                               dataKey="name" 
                               angle={-45}
                               textAnchor="end"
                               height={100}
                               interval={0}
-                              tick={{ fontSize: 10 }}
+                              tick={{ fontSize: 10, fill: "hsl(var(--foreground))" }}
                             />
-                            <YAxis />
+                            <YAxis tick={{ fill: "hsl(var(--foreground))" }} />
                             <ChartTooltip content={<ChartTooltipContent />} />
-                            <Bar dataKey="score" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="score" radius={[4, 4, 0, 0]}>
+                              {analyticsData.scores.slice(0, 5).map((_, index) => (
+                                <Cell key={`cell-${index}`} fill={`hsl(var(--chart-${(index % 5) + 1}))`} />
+                              ))}
+                            </Bar>
                           </BarChart>
                         </ResponsiveContainer>
                       </ChartContainer>
@@ -551,32 +555,18 @@ const Grading = () => {
                           <TableHead className="text-right">Score</TableHead>
                           <TableHead className="text-right">Max Score</TableHead>
                           <TableHead className="text-right">Percentage</TableHead>
-                          <TableHead className="text-right">Grade</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {analyticsData.scores.map((student, index) => {
-                          let grade = "F";
-                          if (student.percentage >= 90) grade = "A";
-                          else if (student.percentage >= 80) grade = "B";
-                          else if (student.percentage >= 70) grade = "C";
-                          else if (student.percentage >= 60) grade = "D";
-
-                          return (
-                            <TableRow key={index}>
-                              <TableCell className="font-medium">{index + 1}</TableCell>
-                              <TableCell>{student.name}</TableCell>
-                              <TableCell className="text-right">{student.score.toFixed(2)}</TableCell>
-                              <TableCell className="text-right">{selectedExamData!.overall_score}</TableCell>
-                              <TableCell className="text-right">{student.percentage.toFixed(1)}%</TableCell>
-                              <TableCell className="text-right">
-                                <Badge variant={grade === "A" ? "default" : grade === "F" ? "destructive" : "secondary"}>
-                                  {grade}
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
+                        {analyticsData.scores.map((student, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">{index + 1}</TableCell>
+                            <TableCell>{student.name}</TableCell>
+                            <TableCell className="text-right">{student.score.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">{selectedExamData!.overall_score}</TableCell>
+                            <TableCell className="text-right">{student.percentage.toFixed(1)}%</TableCell>
+                          </TableRow>
+                        ))}
                       </TableBody>
                     </Table>
                   </CardContent>
