@@ -81,37 +81,56 @@ const ExamDetail = () => {
         fullText += pageText + " ";
       }
 
-      console.log("Extracted PDF text:", fullText);
+      // Normalize text for consistent parsing
+      const normalized = fullText
+        .replace(/\u00A0/g, ' ') // non-breaking spaces
+        .replace(/：/g, ':') // full-width colon to normal colon
+        .replace(/\s+\n/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
 
-      // Improved regex pattern to extract questions
-      // Matches "Question X :" followed by the question text until the next "Question" or end
-      const questionPattern = /Question\s+(\d+)\s*:\s*([^]*?)(?=Question\s+\d+\s*:|$)/gi;
-      const matches = [...fullText.matchAll(questionPattern)];
+      // Split into chunks starting at each 'Question N :' or 'Question N .'
+      const chunks = normalized
+        .split(/(?=Question\s+\d+\s*[:.])/gi)
+        .filter((c) => /Question\s+\d+/i.test(c));
 
-      console.log(`Found ${matches.length} questions in PDF`);
-      matches.forEach((match, i) => {
-        console.log(`Question ${i + 1}:`, match[2].substring(0, 100));
-      });
+      // Primary parsing via chunking to ensure first question is kept
+      let extractedQuestions: Question[] = [];
+      if (chunks.length > 0) {
+        extractedQuestions = chunks.map((chunk, index) => {
+          const m = chunk.match(/Question\s+(\d+)\s*[:.]\s*(.*)/i);
+          const text = (m?.[2] ?? chunk).trim();
+          const clean = text
+            .replace(/\s+/g, ' ')
+            .replace(/\s+([?.!,])/g, '$1');
+          return {
+            id: Date.now().toString() + index,
+            question: clean,
+            question_weight: 10,
+            min_words: 50,
+          };
+        });
+      } else {
+        // Fallback regex if chunking fails
+        const questionPattern = /Question\s+(\d+)\s*[:.]\s*([^]*?)(?=Question\s+\d+\s*[:.]|$)/gi;
+        const matches = [...normalized.matchAll(questionPattern)];
+        extractedQuestions = matches.map((match, index) => {
+          const questionText = (match[2] ?? '').trim()
+            .replace(/\s+/g, ' ')
+            .replace(/\s+([?.!,])/g, '$1');
+          return {
+            id: Date.now().toString() + index,
+            question: questionText,
+            question_weight: 10,
+            min_words: 50,
+          };
+        });
+      }
 
-      if (matches.length === 0) {
+      if (extractedQuestions.length === 0) {
         toast.error("No questions found in the PDF. Please check the format.");
         return;
       }
-
-      const extractedQuestions: Question[] = matches.map((match, index) => {
-        // Clean up the question text: remove extra whitespace and normalize
-        const questionText = match[2]
-          .trim()
-          .replace(/\s+/g, ' ')
-          .replace(/\s+([?.!,])/g, '$1');
-
-        return {
-          id: Date.now().toString() + index,
-          question: questionText,
-          question_weight: 10,
-          min_words: 50,
-        };
-      });
 
       setQuestions([...questions, ...extractedQuestions]);
       toast.success(`Successfully extracted ${extractedQuestions.length} questions from PDF`);
