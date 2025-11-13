@@ -3,8 +3,6 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 
 const Profile = () => {
   const [fullName, setFullName] = useState("");
@@ -21,22 +19,6 @@ const Profile = () => {
     }
   }, []);
 
-  const handleSaveChanges = () => {
-    // Update localStorage with new values
-    const userData = localStorage.getItem("userData");
-    if (userData) {
-      const user = JSON.parse(userData);
-      const updatedUser = {
-        ...user,
-        full_name: fullName,
-        email: email,
-        institution_name: institution,
-      };
-      localStorage.setItem("userData", JSON.stringify(updatedUser));
-      toast.success("Profile updated successfully!");
-    }
-  };
-
   return (
     <DashboardLayout>
       <div className="max-w-2xl space-y-6">
@@ -48,7 +30,7 @@ const Profile = () => {
         <Card>
           <CardHeader>
             <CardTitle>Personal Information</CardTitle>
-            <CardDescription>Update your profile details</CardDescription>
+            <CardDescription>Your profile details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -56,8 +38,8 @@ const Profile = () => {
               <Input 
                 id="fullName" 
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Dr. Jane Smith" 
+                disabled
+                className="bg-muted"
               />
             </div>
             <div className="space-y-2">
@@ -66,8 +48,8 @@ const Profile = () => {
                 id="email" 
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="professor@university.edu" 
+                disabled
+                className="bg-muted"
               />
             </div>
             <div className="space-y-2">
@@ -75,33 +57,10 @@ const Profile = () => {
               <Input 
                 id="institution"
                 value={institution}
-                onChange={(e) => setInstitution(e.target.value)}
-                placeholder="University Name" 
+                disabled
+                className="bg-muted"
               />
             </div>
-            <Button onClick={handleSaveChanges}>Save Changes</Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Change Password</CardTitle>
-            <CardDescription>Update your password</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <Input id="currentPassword" type="password" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
-              <Input id="newPassword" type="password" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
-              <Input id="confirmNewPassword" type="password" />
-            </div>
-            <Button>Update Password</Button>
           </CardContent>
         </Card>
       </div>
