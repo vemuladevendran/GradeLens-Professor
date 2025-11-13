@@ -5,9 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ClipboardCheck, User, FileText, Download, BarChart3, BookOpen } from "lucide-react";
+import { ClipboardCheck, User, FileText, Download, BarChart3, BookOpen, TrendingUp, Award } from "lucide-react";
 import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
 import { toast } from "sonner";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface ExamData {
   id: number;
@@ -164,6 +167,51 @@ const Grading = () => {
   const selectedExamData = exams.find(e => e.id.toString() === selectedExam);
   const gradedCount = submissionsData?.student_submissions.filter(s => s.is_graded).length || 0;
   const pendingCount = submissionsData ? submissionsData.num_students_submitted - gradedCount : 0;
+
+  // Calculate analytics data
+  const getAnalyticsData = () => {
+    if (!submissionsData || !selectedExamData) return null;
+
+    const gradedSubmissions = submissionsData.student_submissions.filter(s => s.is_submitted && s.is_graded);
+    if (gradedSubmissions.length === 0) return null;
+
+    const scores = gradedSubmissions.map(s => {
+      const totalReceived = s.answers.reduce((sum, ans) => sum + ans.received_weight, 0);
+      const percentage = (totalReceived / selectedExamData.overall_score) * 100;
+      return { name: s.student_name, score: totalReceived, percentage: percentage };
+    });
+
+    const averageScore = scores.reduce((sum, s) => sum + s.score, 0) / scores.length;
+    const averagePercentage = (averageScore / selectedExamData.overall_score) * 100;
+
+    // Score distribution
+    const distribution = [
+      { range: "0-20%", count: 0, fill: "hsl(var(--destructive))" },
+      { range: "21-40%", count: 0, fill: "hsl(var(--orange))" },
+      { range: "41-60%", count: 0, fill: "hsl(var(--yellow))" },
+      { range: "61-80%", count: 0, fill: "hsl(var(--chart-2))" },
+      { range: "81-100%", count: 0, fill: "hsl(var(--chart-1))" },
+    ];
+
+    scores.forEach(s => {
+      if (s.percentage <= 20) distribution[0].count++;
+      else if (s.percentage <= 40) distribution[1].count++;
+      else if (s.percentage <= 60) distribution[2].count++;
+      else if (s.percentage <= 80) distribution[3].count++;
+      else distribution[4].count++;
+    });
+
+    return {
+      averageScore: averageScore.toFixed(2),
+      averagePercentage: averagePercentage.toFixed(1),
+      maxScore: Math.max(...scores.map(s => s.score)).toFixed(2),
+      minScore: Math.min(...scores.map(s => s.score)).toFixed(2),
+      scores: scores.sort((a, b) => b.score - a.score),
+      distribution: distribution.filter(d => d.count > 0),
+    };
+  };
+
+  const analyticsData = getAnalyticsData();
 
   return (
     <DashboardLayout>
@@ -349,6 +397,192 @@ const Grading = () => {
                 </CardContent>
               </Card>
             ) : null}
+
+            {/* Analytics Section */}
+            {analyticsData && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-semibold">Analytics & Performance</h2>
+                </div>
+
+                {/* Performance Metrics */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{analyticsData.averageScore}</div>
+                      <p className="text-xs text-muted-foreground">
+                        {analyticsData.averagePercentage}% of total
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Highest Score</CardTitle>
+                      <Award className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{analyticsData.maxScore}</div>
+                      <p className="text-xs text-muted-foreground">
+                        {((parseFloat(analyticsData.maxScore) / selectedExamData!.overall_score) * 100).toFixed(1)}%
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Lowest Score</CardTitle>
+                      <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{analyticsData.minScore}</div>
+                      <p className="text-xs text-muted-foreground">
+                        {((parseFloat(analyticsData.minScore) / selectedExamData!.overall_score) * 100).toFixed(1)}%
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
+                      <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{gradedCount}</div>
+                      <p className="text-xs text-muted-foreground">
+                        of {submissionsData?.num_students_submitted} submissions
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Charts */}
+                <div className="grid gap-6 md:grid-cols-2">
+                  {/* Score Distribution Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Score Distribution</CardTitle>
+                      <CardDescription>Percentage ranges of student scores</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartContainer
+                        config={{
+                          count: {
+                            label: "Students",
+                            color: "hsl(var(--chart-1))",
+                          },
+                        }}
+                        className="h-[300px]"
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={analyticsData.distribution}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ range, count }) => `${range}: ${count}`}
+                              outerRadius={80}
+                              fill="hsl(var(--chart-1))"
+                              dataKey="count"
+                            >
+                              {analyticsData.distribution.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                              ))}
+                            </Pie>
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
+                    </CardContent>
+                  </Card>
+
+                  {/* Top Performers Bar Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Top 10 Performers</CardTitle>
+                      <CardDescription>Highest scoring students</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartContainer
+                        config={{
+                          score: {
+                            label: "Score",
+                            color: "hsl(var(--chart-1))",
+                          },
+                        }}
+                        className="h-[300px]"
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={analyticsData.scores.slice(0, 10)}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis 
+                              dataKey="name" 
+                              angle={-45}
+                              textAnchor="end"
+                              height={100}
+                              interval={0}
+                              tick={{ fontSize: 10 }}
+                            />
+                            <YAxis />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <Bar dataKey="score" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Performance Table */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Detailed Performance Table</CardTitle>
+                    <CardDescription>Complete overview of all graded submissions</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Rank</TableHead>
+                          <TableHead>Student Name</TableHead>
+                          <TableHead className="text-right">Score</TableHead>
+                          <TableHead className="text-right">Max Score</TableHead>
+                          <TableHead className="text-right">Percentage</TableHead>
+                          <TableHead className="text-right">Grade</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {analyticsData.scores.map((student, index) => {
+                          let grade = "F";
+                          if (student.percentage >= 90) grade = "A";
+                          else if (student.percentage >= 80) grade = "B";
+                          else if (student.percentage >= 70) grade = "C";
+                          else if (student.percentage >= 60) grade = "D";
+
+                          return (
+                            <TableRow key={index}>
+                              <TableCell className="font-medium">{index + 1}</TableCell>
+                              <TableCell>{student.name}</TableCell>
+                              <TableCell className="text-right">{student.score.toFixed(2)}</TableCell>
+                              <TableCell className="text-right">{selectedExamData!.overall_score}</TableCell>
+                              <TableCell className="text-right">{student.percentage.toFixed(1)}%</TableCell>
+                              <TableCell className="text-right">
+                                <Badge variant={grade === "A" ? "default" : grade === "F" ? "destructive" : "secondary"}>
+                                  {grade}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </>
         )}
       </div>
