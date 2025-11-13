@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Save, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
-import * as pdfjsLib from 'pdfjs-dist';
+import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configure PDF.js worker (local asset for Vite)
+GlobalWorkerOptions.workerSrc = pdfWorker;
 
 interface Question {
   id: string;
@@ -67,7 +68,7 @@ const ExamDetail = () => {
       const arrayBuffer = await file.arrayBuffer();
       
       // Load the PDF document
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await getDocument({ data: arrayBuffer }).promise;
       
       // Extract text from all pages
       let fullText = "";
