@@ -86,7 +86,30 @@ const CourseNotes = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+      const file = e.target.files[0];
+      
+      // Validate file size (max 50MB)
+      const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+      if (file.size > maxSize) {
+        toast.error(`File size exceeds 50MB limit. Selected file is ${(file.size / (1024 * 1024)).toFixed(2)}MB`);
+        e.target.value = ""; // Reset file input
+        return;
+      }
+      
+      // Validate file type (PDF only)
+      if (file.type !== 'application/pdf') {
+        toast.error(`Only PDF files are supported. Selected file type: ${file.type || 'unknown'}`);
+        e.target.value = ""; // Reset file input
+        return;
+      }
+      
+      console.log("File selected:", {
+        name: file.name,
+        size: `${(file.size / (1024 * 1024)).toFixed(2)}MB`,
+        type: file.type
+      });
+      
+      setSelectedFile(file);
     }
   };
 
@@ -135,31 +158,90 @@ const CourseNotes = () => {
           setIsUploading(false);
           resolve(xhr.response);
         } else {
-          toast.error("Failed to upload note");
+          let errorMessage = "Failed to upload note";
+          try {
+            const errorData = JSON.parse(xhr.responseText);
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } catch (e) {
+            // If response is not JSON, use status text
+            errorMessage = xhr.statusText || errorMessage;
+          }
+          
+          console.error("Upload failed:", {
+            status: xhr.status,
+            statusText: xhr.statusText,
+            response: xhr.responseText
+          });
+          
+          toast.error(`${errorMessage} (Status: ${xhr.status})`);
           setIsUploading(false);
           setUploadProgress(0);
-          reject(new Error("Upload failed"));
+          reject(new Error(`Upload failed: ${errorMessage}`));
         }
       });
 
       // Handle errors
-      xhr.addEventListener("error", () => {
-        console.error("Upload error");
-        toast.error("Failed to upload note");
+      xhr.addEventListener("error", (e) => {
+        console.error("Upload network error:", {
+          error: e,
+          status: xhr.status,
+          statusText: xhr.statusText,
+          responseText: xhr.responseText,
+          readyState: xhr.readyState
+        });
+        toast.error("Network error occurred during upload. Please check your connection and try again.");
         setIsUploading(false);
         setUploadProgress(0);
-        reject(new Error("Upload failed"));
+        reject(new Error(`Upload failed: ${xhr.statusText || 'Network error'}`));
+      });
+
+      // Handle abort
+      xhr.addEventListener("abort", () => {
+        console.error("Upload aborted");
+        toast.error("Upload was cancelled");
+        setIsUploading(false);
+        setUploadProgress(0);
+        reject(new Error("Upload aborted"));
+      });
+
+      // Handle timeout
+      xhr.addEventListener("timeout", () => {
+        console.error("Upload timeout");
+        toast.error("Upload timed out. The file may be too large or connection too slow.");
+        setIsUploading(false);
+        setUploadProgress(0);
+        reject(new Error("Upload timeout"));
       });
 
       // Set up request
       const token = localStorage.getItem("authToken");
-      xhr.open("POST", API_ENDPOINTS.uploadNote(course.id.toString()));
+      const uploadUrl = API_ENDPOINTS.uploadNote(course.id.toString());
+      
+      console.log("Starting upload:", {
+        url: uploadUrl,
+        fileName: selectedFile.name,
+        fileSize: `${(selectedFile.size / (1024 * 1024)).toFixed(2)}MB`,
+        fileType: selectedFile.type
+      });
+      
+      xhr.open("POST", uploadUrl);
+      xhr.timeout = 300000; // 5 minutes timeout
+      
       if (token) {
         xhr.setRequestHeader("Authorization", `Token ${token}`);
       }
+      // Note: Don't set Content-Type header, browser will set it with boundary for FormData
 
       // Send request
-      xhr.send(formData);
+      try {
+        xhr.send(formData);
+      } catch (error) {
+        console.error("Error sending request:", error);
+        toast.error("Failed to initiate upload. Please try again.");
+        setIsUploading(false);
+        setUploadProgress(0);
+        reject(error);
+      }
     });
   };
 
