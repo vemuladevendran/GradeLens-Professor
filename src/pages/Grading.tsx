@@ -9,7 +9,7 @@ import { ClipboardCheck, User, FileText, Download, BarChart3, BookOpen, Trending
 import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
 import { toast } from "sonner";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface ExamData {
@@ -186,12 +186,19 @@ const Grading = () => {
 
     // Score distribution
     const distribution = [
-      { range: "0-20%", count: 0, fill: "hsl(var(--destructive))" },
-      { range: "21-40%", count: 0, fill: "hsl(var(--orange))" },
-      { range: "41-60%", count: 0, fill: "hsl(var(--yellow))" },
-      { range: "61-80%", count: 0, fill: "hsl(var(--chart-2))" },
-      { range: "81-100%", count: 0, fill: "hsl(var(--chart-1))" },
+      { range: "0-20%", count: 0, fill: "var(--destructive)" },
+      { range: "21-40%", count: 0, fill: "var(--orange)" },
+      { range: "41-60%", count: 0, fill: "var(--yellow)" },
+      { range: "61-80%", count: 0, fill: "var(--chart-2)" },
+      { range: "81-100%", count: 0, fill: "var(--chart-1)" },
     ];
+
+    // Score trend data - simulating trend by ranking
+    const trendData = scores.map((s, idx) => ({
+      student: `#${idx + 1}`,
+      score: s.score,
+      percentage: s.percentage,
+    }));
 
     scores.forEach(s => {
       if (s.percentage <= 20) distribution[0].count++;
@@ -208,6 +215,7 @@ const Grading = () => {
       minScore: Math.min(...scores.map(s => s.score)).toFixed(2),
       scores: scores.sort((a, b) => b.score - a.score),
       distribution: distribution.filter(d => d.count > 0),
+      trendData,
     };
   };
 
@@ -457,6 +465,45 @@ const Grading = () => {
                   </Card>
                 </div>
 
+                {/* Score Trends Chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Score Trends</CardTitle>
+                    <CardDescription>Score distribution from highest to lowest</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer
+                      config={{
+                        score: {
+                          label: "Score",
+                          color: "hsl(var(--chart-1))",
+                        },
+                      }}
+                      className="h-[300px]"
+                    >
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={analyticsData.trendData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis 
+                            dataKey="student" 
+                            tick={{ fontSize: 10, fill: "hsl(var(--foreground))" }}
+                          />
+                          <YAxis tick={{ fill: "hsl(var(--foreground))" }} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Line 
+                            type="monotone" 
+                            dataKey="score" 
+                            stroke="hsl(var(--chart-1))" 
+                            strokeWidth={2}
+                            dot={{ fill: "hsl(var(--chart-1))", r: 4 }}
+                            activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+
                 {/* Charts */}
                 <div className="grid gap-6 md:grid-cols-2">
                   {/* Score Distribution Chart */}
@@ -484,11 +531,10 @@ const Grading = () => {
                               labelLine={false}
                               label={({ range, count }) => `${range}: ${count}`}
                               outerRadius={80}
-                              fill="hsl(var(--chart-1))"
                               dataKey="count"
                             >
                               {analyticsData.distribution.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                                <Cell key={`cell-${index}`} fill={`hsl(${entry.fill})`} />
                               ))}
                             </Pie>
                             <ChartTooltip content={<ChartTooltipContent />} />
@@ -529,9 +575,16 @@ const Grading = () => {
                             <YAxis tick={{ fill: "hsl(var(--foreground))" }} />
                             <ChartTooltip content={<ChartTooltipContent />} />
                             <Bar dataKey="score" radius={[4, 4, 0, 0]}>
-                              {analyticsData.scores.slice(0, 5).map((_, index) => (
-                                <Cell key={`cell-${index}`} fill={`hsl(var(--chart-${(index % 5) + 1}))`} />
-                              ))}
+                              {analyticsData.scores.slice(0, 5).map((_, index) => {
+                                const colors = [
+                                  "hsl(var(--chart-1))",
+                                  "hsl(var(--chart-2))",
+                                  "hsl(var(--chart-3))",
+                                  "hsl(var(--chart-4))",
+                                  "hsl(var(--chart-5))",
+                                ];
+                                return <Cell key={`cell-${index}`} fill={colors[index]} />;
+                              })}
                             </Bar>
                           </BarChart>
                         </ResponsiveContainer>
