@@ -208,6 +208,29 @@ const Grading = () => {
       else distribution[4].count++;
     });
 
+    // Question-wise analytics
+    const questionAnalytics = submissionsData.questions.map(question => {
+      const questionAnswers = gradedSubmissions
+        .map(s => s.answers.find(a => a.question_id === question.id))
+        .filter(a => a !== undefined);
+
+      const totalStudents = questionAnswers.length;
+      const totalPossibleScore = question.question_weight * totalStudents;
+      const totalReceivedScore = questionAnswers.reduce((sum, a) => sum + a.received_weight, 0);
+      const averageScore = totalStudents > 0 ? totalReceivedScore / totalStudents : 0;
+      const averagePercentage = (averageScore / question.question_weight) * 100;
+
+      return {
+        question: question.question.length > 50 ? question.question.substring(0, 50) + '...' : question.question,
+        fullQuestion: question.question,
+        averageScore: averageScore.toFixed(2),
+        maxScore: question.question_weight,
+        averagePercentage: averagePercentage.toFixed(1),
+        totalStudents,
+        difficulty: averagePercentage >= 80 ? 'Easy' : averagePercentage >= 60 ? 'Medium' : 'Hard',
+      };
+    }).sort((a, b) => parseFloat(a.averagePercentage) - parseFloat(b.averagePercentage));
+
     return {
       averageScore: averageScore.toFixed(2),
       averagePercentage: averagePercentage.toFixed(1),
@@ -216,6 +239,7 @@ const Grading = () => {
       scores: scores.sort((a, b) => b.score - a.score),
       distribution: distribution.filter(d => d.count > 0),
       trendData,
+      questionAnalytics,
     };
   };
 
@@ -593,10 +617,122 @@ const Grading = () => {
                   </Card>
                 </div>
 
+                {/* Question-wise Analytics */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Question-wise Performance</CardTitle>
+                    <CardDescription>Identify which questions students struggled with most</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer
+                      config={{
+                        averagePercentage: {
+                          label: "Average %",
+                          color: "hsl(var(--chart-1))",
+                        },
+                      }}
+                      className="h-[400px]"
+                    >
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={analyticsData.questionAnalytics} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis type="number" domain={[0, 100]} tick={{ fill: "hsl(var(--foreground))" }} />
+                          <YAxis 
+                            dataKey="question" 
+                            type="category" 
+                            width={200}
+                            tick={{ fontSize: 10, fill: "hsl(var(--foreground))" }}
+                          />
+                          <ChartTooltip 
+                            content={({ active, payload }) => {
+                              if (active && payload && payload.length) {
+                                const data = payload[0].payload;
+                                return (
+                                  <div className="bg-popover border border-border rounded-lg p-3 shadow-lg">
+                                    <p className="font-semibold mb-2">{data.fullQuestion}</p>
+                                    <p className="text-sm">Average: {data.averageScore}/{data.maxScore}</p>
+                                    <p className="text-sm">Percentage: {data.averagePercentage}%</p>
+                                    <p className="text-sm">Students: {data.totalStudents}</p>
+                                    <Badge className="mt-2" variant={
+                                      data.difficulty === 'Easy' ? 'default' : 
+                                      data.difficulty === 'Medium' ? 'secondary' : 
+                                      'destructive'
+                                    }>
+                                      {data.difficulty}
+                                    </Badge>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }}
+                          />
+                          <Bar dataKey="averagePercentage" radius={[0, 4, 4, 0]}>
+                            {analyticsData.questionAnalytics.map((entry, index) => {
+                              let color = "hsl(var(--chart-1))";
+                              if (parseFloat(entry.averagePercentage) < 60) {
+                                color = "hsl(var(--destructive))";
+                              } else if (parseFloat(entry.averagePercentage) < 80) {
+                                color = "hsl(var(--yellow))";
+                              }
+                              return <Cell key={`cell-${index}`} fill={color} />;
+                            })}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+
+                {/* Question Analytics Table */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Question Difficulty Analysis</CardTitle>
+                    <CardDescription>Detailed breakdown of question performance</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Question</TableHead>
+                          <TableHead className="text-right">Avg Score</TableHead>
+                          <TableHead className="text-right">Max Score</TableHead>
+                          <TableHead className="text-right">Avg %</TableHead>
+                          <TableHead className="text-right">Students</TableHead>
+                          <TableHead className="text-right">Difficulty</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {analyticsData.questionAnalytics.map((question, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="max-w-md">
+                              <div className="truncate" title={question.fullQuestion}>
+                                {question.question}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">{question.averageScore}</TableCell>
+                            <TableCell className="text-right">{question.maxScore}</TableCell>
+                            <TableCell className="text-right">{question.averagePercentage}%</TableCell>
+                            <TableCell className="text-right">{question.totalStudents}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant={
+                                question.difficulty === 'Easy' ? 'default' : 
+                                question.difficulty === 'Medium' ? 'secondary' : 
+                                'destructive'
+                              }>
+                                {question.difficulty}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
                 {/* Performance Table */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Detailed Performance Table</CardTitle>
+                    <CardTitle>Student Performance Table</CardTitle>
                     <CardDescription>Complete overview of all graded submissions</CardDescription>
                   </CardHeader>
                   <CardContent>
