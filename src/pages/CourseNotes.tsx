@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, FileText, Upload, Download, Eye, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +39,7 @@ const CourseNotes = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [noteName, setNoteName] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     if (course) {
@@ -100,40 +102,65 @@ const CourseNotes = () => {
     }
 
     setIsUploading(true);
-    try {
+    setUploadProgress(0);
+
+    return new Promise((resolve, reject) => {
       const formData = new FormData();
       formData.append("note_name", noteName);
       formData.append("file", selectedFile);
 
-      const token = localStorage.getItem("authToken");
-      const response = await fetch(API_ENDPOINTS.uploadNote(course.id.toString()), {
-        method: "POST",
-        headers: {
-          ...(token && { Authorization: `Token ${token}` }),
-        },
-        body: formData,
+      const xhr = new XMLHttpRequest();
+
+      // Track upload progress
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = (e.loaded / e.total) * 100;
+          setUploadProgress(Math.round(percentComplete));
+        }
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to upload note");
+      // Handle completion
+      xhr.addEventListener("load", async () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          toast.success("Note uploaded successfully");
+          
+          // Refresh the notes list
+          await fetchNotes();
+          
+          // Reset form
+          setNoteName("");
+          setSelectedFile(null);
+          setUploadProgress(0);
+          setIsDialogOpen(false);
+          setIsUploading(false);
+          resolve(xhr.response);
+        } else {
+          toast.error("Failed to upload note");
+          setIsUploading(false);
+          setUploadProgress(0);
+          reject(new Error("Upload failed"));
+        }
+      });
+
+      // Handle errors
+      xhr.addEventListener("error", () => {
+        console.error("Upload error");
+        toast.error("Failed to upload note");
+        setIsUploading(false);
+        setUploadProgress(0);
+        reject(new Error("Upload failed"));
+      });
+
+      // Set up request
+      const token = localStorage.getItem("authToken");
+      xhr.open("POST", API_ENDPOINTS.uploadNote(course.id.toString()));
+      if (token) {
+        xhr.setRequestHeader("Authorization", `Token ${token}`);
       }
 
-      const data = await response.json();
-      toast.success("Note uploaded successfully");
-      
-      // Refresh the notes list
-      await fetchNotes();
-      
-      // Reset form
-      setNoteName("");
-      setSelectedFile(null);
-      setIsDialogOpen(false);
-    } catch (error) {
-      console.error("Upload note error:", error);
-      toast.error("Failed to upload note");
-    } finally {
-      setIsUploading(false);
-    }
+      // Send request
+      xhr.send(formData);
+    });
   };
 
   const handleDeleteNote = async (noteId: number, noteName: string) => {
@@ -218,6 +245,15 @@ const CourseNotes = () => {
                       </p>
                     </div>
                   </div>
+                  {isUploading && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Uploading...</span>
+                        <span className="font-medium">{uploadProgress}%</span>
+                      </div>
+                      <Progress value={uploadProgress} />
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-end gap-3">
                   <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isUploading}>
