@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, BookOpen, FolderOpen } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Plus, BookOpen, FolderOpen, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
 
@@ -29,6 +30,7 @@ const Dashboard = () => {
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -81,6 +83,29 @@ const Dashboard = () => {
       toast.error("Failed to create course");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeleteCourse = async () => {
+    if (!courseToDelete) return;
+
+    try {
+      const response = await fetch(API_ENDPOINTS.deleteCourse(courseToDelete.id.toString()), {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete course");
+      }
+
+      const data = await response.json();
+      setCourses(courses.filter(course => course.id !== courseToDelete.id));
+      toast.success(data.message || "Course deleted successfully");
+      setCourseToDelete(null);
+    } catch (error) {
+      console.error("Delete course error:", error);
+      toast.error("Failed to delete course");
     }
   };
 
@@ -173,7 +198,7 @@ const Dashboard = () => {
                     {course.course_code} • {course.course_description}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-2">
                   <Button 
                     variant="outline" 
                     className="w-full"
@@ -182,11 +207,40 @@ const Dashboard = () => {
                     <FolderOpen className="h-4 w-4 mr-2" />
                     Open Course
                   </Button>
+                  <Button 
+                    variant="destructive" 
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCourseToDelete(course);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Course
+                  </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
+
+        <AlertDialog open={!!courseToDelete} onOpenChange={(open) => !open && setCourseToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the course{" "}
+                <strong>{courseToDelete?.course_name}</strong> and all its related data including exams, notes, and student submissions.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteCourse} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete Course
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );

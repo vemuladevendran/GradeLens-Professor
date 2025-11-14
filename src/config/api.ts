@@ -17,6 +17,7 @@ export const API_ENDPOINTS = {
   autoGrade: (courseId: string, examId: string, studentId: string) => `${API_BASE_URL}/api/courses/${courseId}/exams/${examId}/students/${studentId}/grade/`,
   saveGrades: (courseId: string, examId: string, studentId: string) => `${API_BASE_URL}/api/courses/${courseId}/exams/${examId}/students/${studentId}/save-grades/`,
   updateGrades: (courseId: string, examId: string, studentId: string) => `${API_BASE_URL}/api/courses/${courseId}/exams/${examId}/students/${studentId}/update-grades/`,
+  deleteCourse: (courseId: string) => `${API_BASE_URL}/api/courses/${courseId}/delete-course/`,
 };
 
 export const getAuthHeaders = () => {
