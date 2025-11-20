@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useBlocker } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,39 @@ const GradeSubmission = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [grades, setGrades] = useState<{ [key: number]: GradeData }>({});
   const [overallFeedback, setOverallFeedback] = useState("");
+
+  // Block navigation while auto-grading is in progress
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      isGrading && currentLocation.pathname !== nextLocation.pathname
+  );
+
+  // Show warning when user tries to navigate away during grading
+  useEffect(() => {
+    if (blocker.state === "blocked") {
+      const shouldLeave = window.confirm(
+        "Auto-grading is still in progress. If you leave now, the grading process will be cancelled. Are you sure you want to leave?"
+      );
+      if (shouldLeave) {
+        blocker.proceed();
+      } else {
+        blocker.reset();
+      }
+    }
+  }, [blocker]);
+
+  // Prevent page refresh/close during grading
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isGrading) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isGrading]);
 
   useEffect(() => {
     const fetchSubmission = async () => {
