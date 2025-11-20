@@ -80,9 +80,15 @@ const GradeSubmission = () => {
 
   useEffect(() => {
     const fetchSubmission = async () => {
-      if (!assignmentId || !studentName) return;
+      if (!assignmentId || !studentName) {
+        console.error("Missing required params:", { assignmentId, studentName, courseId, studentId });
+        toast.error("Missing required information to load submission");
+        setIsLoading(false);
+        return;
+      }
 
       try {
+        console.log("Fetching submission for:", { assignmentId, studentName, courseId, studentId });
         const response = await fetch(API_ENDPOINTS.getExamSubmissions(assignmentId), {
           headers: getAuthHeaders(),
         });
@@ -92,11 +98,14 @@ const GradeSubmission = () => {
       }
 
       const data = await response.json();
+      console.log("Received submission data:", data);
+      
       const studentSubmission = data.student_submissions.find(
         (s: StudentSubmission) => s.student_name === decodeURIComponent(studentName)
       );
 
       if (studentSubmission) {
+        console.log("Found student submission:", studentSubmission);
         setSubmission(studentSubmission);
         
         // Initialize grades with existing data if already graded
@@ -123,7 +132,7 @@ const GradeSubmission = () => {
     };
 
     fetchSubmission();
-  }, [assignmentId, studentName]);
+  }, [assignmentId, studentName, courseId, studentId]);
 
   const handleAutoGrade = async () => {
     if (!courseId || !assignmentId || !studentId || studentId === "0") {

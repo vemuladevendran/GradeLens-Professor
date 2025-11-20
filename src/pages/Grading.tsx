@@ -401,9 +401,19 @@ const Grading = () => {
                               <Button 
                                 onClick={() => {
                                   const exam = exams.find(e => e.id.toString() === selectedExam);
-                                  if (exam) {
-                                    handleGradeStudent(student.student_id, student.student_name, exam.course_id);
+                                  if (!exam) {
+                                    toast.error("Exam not found");
+                                    return;
                                   }
+                                  if (!exam.course_id) {
+                                    toast.error("Course ID is missing. Please ensure your backend API returns course_id in the exams list.");
+                                    return;
+                                  }
+                                  if (!student.student_id) {
+                                    toast.error("Student ID is missing. Please ensure your backend API returns student_id in submissions.");
+                                    return;
+                                  }
+                                  handleGradeStudent(student.student_id, student.student_name, exam.course_id);
                                 }}
                               >
                                 <ClipboardCheck className="h-4 w-4 mr-2" />
