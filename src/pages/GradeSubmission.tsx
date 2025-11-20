@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useBlocker } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,25 +45,9 @@ const GradeSubmission = () => {
   const [grades, setGrades] = useState<{ [key: number]: GradeData }>({});
   const [overallFeedback, setOverallFeedback] = useState("");
 
-  // Block navigation while auto-grading is in progress
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      isGrading && currentLocation.pathname !== nextLocation.pathname
-  );
+  // NOTE: We previously used useBlocker here, but it caused runtime issues.
+  // Navigation is now controlled by disabling actions while grading is in progress.
 
-  // Show warning when user tries to navigate away during grading
-  useEffect(() => {
-    if (blocker.state === "blocked") {
-      const shouldLeave = window.confirm(
-        "Auto-grading is still in progress. If you leave now, the grading process will be cancelled. Are you sure you want to leave?"
-      );
-      if (shouldLeave) {
-        blocker.proceed();
-      } else {
-        blocker.reset();
-      }
-    }
-  }, [blocker]);
 
   // Prevent page refresh/close during grading
   useEffect(() => {
@@ -313,7 +297,7 @@ const GradeSubmission = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <Button variant="ghost" onClick={() => navigate(`/assignment/${assignmentId}`)} className="mb-4">
+          <Button variant="ghost" onClick={() => !isGrading && navigate(`/assignment/${assignmentId}`)} className="mb-4" disabled={isGrading}>
             ← Back to Assignment
           </Button>
           <div className="flex items-center justify-between">
@@ -324,7 +308,13 @@ const GradeSubmission = () => {
                   `Submitted: ${new Date(submission.submission_timestamp).toLocaleString()}`}
               </p>
             </div>
-            <Button onClick={handleAutoGrade} disabled={isGrading}>
+            <Button onClick={() => {
+              if (isGrading) {
+                toast.error("Auto-grading is in progress. Please wait until it completes.");
+                return;
+              }
+              handleAutoGrade();
+            }} disabled={isGrading}>
               {isGrading ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -448,12 +438,12 @@ const GradeSubmission = () => {
           <div className="flex justify-end gap-3">
             <Button 
               variant="outline" 
-              onClick={() => navigate(`/assignment/${assignmentId}`)}
-              disabled={isSaving}
+              onClick={() => !isGrading && navigate(`/assignment/${assignmentId}`)}
+              disabled={isSaving || isGrading}
             >
               Back to Assignment
             </Button>
-            <Button onClick={handleSaveGrades} disabled={isSaving}>
+            <Button onClick={handleSaveGrades} disabled={isSaving || isGrading}>
               {isSaving ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
