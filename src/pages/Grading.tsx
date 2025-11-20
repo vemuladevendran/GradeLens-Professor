@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 interface ExamData {
   id: number;
+  course_id: number;
   exam_name: string;
   course_name: string;
   overall_score: number;
@@ -114,7 +115,7 @@ const Grading = () => {
   };
 
   const handleGradeStudent = (studentId: number, studentName: string, courseId: number) => {
-    navigate(`/grade/${courseId}/${selectedExam}/${studentId}/${encodeURIComponent(studentName)}`);
+    navigate(`/grade-submission/${courseId}/${selectedExam}/${studentId}/${encodeURIComponent(studentName)}`);
   };
 
   const handleExportGrades = () => {
@@ -401,9 +402,7 @@ const Grading = () => {
                                 onClick={() => {
                                   const exam = exams.find(e => e.id.toString() === selectedExam);
                                   if (exam) {
-                                    // Extract course ID from the exam data - we need to add this to the API response
-                                    // For now, using exam.id as a placeholder
-                                    navigate(`/assignment/${selectedExam}`);
+                                    handleGradeStudent(student.student_id, student.student_name, exam.course_id);
                                   }
                                 }}
                               >
