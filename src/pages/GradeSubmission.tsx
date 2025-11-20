@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useBlocker } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,25 +46,7 @@ const GradeSubmission = () => {
   const [overallFeedback, setOverallFeedback] = useState("");
 
 
-  // Block all navigation attempts while auto-grading is in progress
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      isGrading && currentLocation.pathname !== nextLocation.pathname
-  );
-
-  // Handle blocked navigation with confirmation dialog
-  useEffect(() => {
-    if (blocker.state === "blocked") {
-      const shouldLeave = window.confirm(
-        "⚠️ Auto-grading is in progress!\n\nIf you leave now, the grading process will be cancelled and you'll lose all progress.\n\nAre you sure you want to leave?"
-      );
-      if (shouldLeave) {
-        blocker.proceed();
-      } else {
-        blocker.reset();
-      }
-    }
-  }, [blocker]);
+  // Navigation is controlled by disabling actions while grading is in progress.
 
 
 
@@ -361,13 +343,13 @@ const GradeSubmission = () => {
         </div>
 
         {isGrading && (
-          <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
+          <Card className="border-yellow-500">
             <CardContent className="py-4">
               <div className="flex items-center gap-3">
-                <RefreshCw className="h-5 w-5 animate-spin text-yellow-600" />
+                <RefreshCw className="h-5 w-5 animate-spin" />
                 <div>
-                  <p className="font-semibold text-yellow-900 dark:text-yellow-100">Auto-grading in progress...</p>
-                  <p className="text-sm text-yellow-700 dark:text-yellow-300">Please stay on this page. Navigation is disabled until grading completes.</p>
+                  <p className="font-semibold">Auto-grading in progress...</p>
+                  <p className="text-sm text-muted-foreground">Please stay on this page. Navigation is disabled until grading completes.</p>
                 </div>
               </div>
             </CardContent>
