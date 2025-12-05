@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Save, Upload } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus, Trash2, Save, Upload, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { API_ENDPOINTS, getAuthHeaders } from "@/config/api";
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
@@ -34,6 +35,7 @@ const ExamDetail = () => {
   const [rubric, setRubric] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
 
   const addQuestion = () => {
     const newQuestion: Question = {
@@ -263,14 +265,54 @@ const ExamDetail = () => {
                   <Plus className="h-4 w-4 mr-2" />
                   Add Question
                 </Button>
-                <Button 
-                  variant="outline"
-                  disabled={isUploadingPdf}
-                  onClick={() => document.getElementById('pdf-upload')?.click()}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  {isUploadingPdf ? "Uploading..." : "Upload from PDF"}
-                </Button>
+                <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <FileText className="h-4 w-4 mr-2" />
+                      View PDF Template
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>PDF Upload Template</DialogTitle>
+                      <DialogDescription>
+                        Format your PDF with questions following this pattern:
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <Card className="bg-muted">
+                        <CardContent className="pt-6">
+                          <pre className="text-sm font-mono whitespace-pre-wrap">
+{`Question 1: What are the key principles of object-oriented programming?
+
+Question 2: Explain the difference between stack and heap memory allocation.
+
+Question 3: Describe how HTTP protocol works and its main methods.
+
+Question 4: What is the purpose of database normalization?`}
+                          </pre>
+                        </CardContent>
+                      </Card>
+                      <div className="space-y-2 text-sm text-muted-foreground">
+                        <p>• Start each question with "Question N:" (where N is the number)</p>
+                        <p>• Follow with the question text on the same or next line</p>
+                        <p>• Leave space between questions for clarity</p>
+                        <p>• You can use "Question N." with a period instead of colon</p>
+                      </div>
+                      <Button 
+                        onClick={() => {
+                          setShowTemplateDialog(false);
+                          document.getElementById('pdf-upload')?.click();
+                        }}
+                        disabled={isUploadingPdf}
+                        className="w-full"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {isUploadingPdf ? "Uploading..." : "Upload PDF Now"}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
                 <input
                   id="pdf-upload"
                   type="file"

@@ -1,7 +1,6 @@
 // export const API_BASE_URL = "https://5k8sc5cn-8000.usw3.devtunnels.ms/";
-export const API_BASE_URL = "http://127.0.0.1:8000/";
-
-
+export const API_BASE_URL = "https://g8swb4sn-8000.usw3.devtunnels.ms/";
+// export const API_BASE_URL = "http://127.0.0.1:8000/";
 
 export const API_ENDPOINTS = {
   professors: `${API_BASE_URL}/api/professors/`,
@@ -17,9 +16,12 @@ export const API_ENDPOINTS = {
   uploadNote: (courseId: string) => `${API_BASE_URL}/api/courses/${courseId}/upload-note/`,
   getNotes: (courseId: string) => `${API_BASE_URL}/api/courses/${courseId}/notes/`,
   deleteNote: (noteId: string) => `${API_BASE_URL}/api/notes/${noteId}/delete/`,
-  autoGrade: (courseId: string, examId: string, studentId: string) => `${API_BASE_URL}/api/courses/${courseId}/exams/${examId}/students/${studentId}/grade/`,
-  saveGrades: (courseId: string, examId: string, studentId: string) => `${API_BASE_URL}/api/courses/${courseId}/exams/${examId}/students/${studentId}/save-grades/`,
-  updateGrades: (courseId: string, examId: string, studentId: string) => `${API_BASE_URL}/api/courses/${courseId}/exams/${examId}/students/${studentId}/update-grades/`,
+  autoGrade: (courseId: string, examId: string, studentId: string) =>
+    `${API_BASE_URL}/api/courses/${courseId}/exams/${examId}/students/${studentId}/grade/`,
+  saveGrades: (courseId: string, examId: string, studentId: string) =>
+    `${API_BASE_URL}/api/courses/${courseId}/exams/${examId}/students/${studentId}/save-grades/`,
+  updateGrades: (courseId: string, examId: string, studentId: string) =>
+    `${API_BASE_URL}/api/courses/${courseId}/exams/${examId}/students/${studentId}/update-grades/`,
   deleteCourse: (courseId: string) => `${API_BASE_URL}/api/courses/${courseId}/delete-course/`,
 };
 

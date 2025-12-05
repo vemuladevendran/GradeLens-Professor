@@ -45,11 +45,35 @@ const GradeSubmission = () => {
   const [grades, setGrades] = useState<{ [key: number]: GradeData }>({});
   const [overallFeedback, setOverallFeedback] = useState("");
 
+
+  // Navigation is controlled by disabling actions while grading is in progress.
+
+
+
+  // Prevent page refresh/close during grading
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isGrading) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isGrading]);
+
   useEffect(() => {
     const fetchSubmission = async () => {
-      if (!assignmentId || !studentName) return;
+      if (!assignmentId || !studentName) {
+        console.error("Missing required params:", { assignmentId, studentName, courseId, studentId });
+        toast.error("Missing required information to load submission");
+        setIsLoading(false);
+        return;
+      }
 
       try {
+        console.log("Fetching submission for:", { assignmentId, studentName, courseId, studentId });
         const response = await fetch(API_ENDPOINTS.getExamSubmissions(assignmentId), {
           headers: getAuthHeaders(),
         });
@@ -59,11 +83,14 @@ const GradeSubmission = () => {
       }
 
       const data = await response.json();
+      console.log("Received submission data:", data);
+      
       const studentSubmission = data.student_submissions.find(
         (s: StudentSubmission) => s.student_name === decodeURIComponent(studentName)
       );
 
       if (studentSubmission) {
+        console.log("Found student submission:", studentSubmission);
         setSubmission(studentSubmission);
         
         // Initialize grades with existing data if already graded
@@ -90,7 +117,7 @@ const GradeSubmission = () => {
     };
 
     fetchSubmission();
-  }, [assignmentId, studentName]);
+  }, [assignmentId, studentName, courseId, studentId]);
 
   const handleAutoGrade = async () => {
     if (!courseId || !assignmentId || !studentId || studentId === "0") {
@@ -271,7 +298,18 @@ const GradeSubmission = () => {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <Button variant="ghost" onClick={() => navigate(`/assignment/${assignmentId}`)} className="mb-4">
+          <Button 
+            variant="ghost" 
+            onClick={() => {
+              if (isGrading) {
+                toast.error("Cannot navigate while auto-grading is in progress. Please wait for it to complete.");
+                return;
+              }
+              navigate(`/assignment/${assignmentId}`);
+            }} 
+            className="mb-4" 
+            disabled={isGrading}
+          >
             ← Back to Assignment
           </Button>
           <div className="flex items-center justify-between">
@@ -282,7 +320,13 @@ const GradeSubmission = () => {
                   `Submitted: ${new Date(submission.submission_timestamp).toLocaleString()}`}
               </p>
             </div>
-            <Button onClick={handleAutoGrade} disabled={isGrading}>
+            <Button onClick={() => {
+              if (isGrading) {
+                toast.error("Auto-grading is in progress. Please wait until it completes.");
+                return;
+              }
+              handleAutoGrade();
+            }} disabled={isGrading}>
               {isGrading ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -297,6 +341,20 @@ const GradeSubmission = () => {
             </Button>
           </div>
         </div>
+
+        {isGrading && (
+          <Card className="border-yellow-500">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <RefreshCw className="h-5 w-5 animate-spin" />
+                <div>
+                  <p className="font-semibold">Auto-grading in progress...</p>
+                  <p className="text-sm text-muted-foreground">Please stay on this page. Navigation is disabled until grading completes.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {Object.keys(grades).length > 0 && (
           <Card className="border-l-4 border-l-primary">
@@ -406,12 +464,18 @@ const GradeSubmission = () => {
           <div className="flex justify-end gap-3">
             <Button 
               variant="outline" 
-              onClick={() => navigate(`/assignment/${assignmentId}`)}
-              disabled={isSaving}
+              onClick={() => {
+                if (isGrading) {
+                  toast.error("Cannot navigate while auto-grading is in progress. Please wait for it to complete.");
+                  return;
+                }
+                navigate(`/assignment/${assignmentId}`);
+              }}
+              disabled={isSaving || isGrading}
             >
               Back to Assignment
             </Button>
-            <Button onClick={handleSaveGrades} disabled={isSaving}>
+            <Button onClick={handleSaveGrades} disabled={isSaving || isGrading}>
               {isSaving ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />

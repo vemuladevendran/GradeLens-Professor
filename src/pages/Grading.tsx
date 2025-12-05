@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 interface ExamData {
   id: number;
+  course_id: number;
   exam_name: string;
   course_name: string;
   overall_score: number;
@@ -114,7 +115,7 @@ const Grading = () => {
   };
 
   const handleGradeStudent = (studentId: number, studentName: string, courseId: number) => {
-    navigate(`/grade/${courseId}/${selectedExam}/${studentId}/${encodeURIComponent(studentName)}`);
+    navigate(`/grade-submission/${courseId}/${selectedExam}/${studentId}/${encodeURIComponent(studentName)}`);
   };
 
   const handleExportGrades = () => {
@@ -400,11 +401,19 @@ const Grading = () => {
                               <Button 
                                 onClick={() => {
                                   const exam = exams.find(e => e.id.toString() === selectedExam);
-                                  if (exam) {
-                                    // Extract course ID from the exam data - we need to add this to the API response
-                                    // For now, using exam.id as a placeholder
-                                    navigate(`/assignment/${selectedExam}`);
+                                  if (!exam) {
+                                    toast.error("Exam not found");
+                                    return;
                                   }
+                                  if (!exam.course_id) {
+                                    toast.error("Course ID is missing. Please ensure your backend API returns course_id in the exams list.");
+                                    return;
+                                  }
+                                  if (!student.student_id) {
+                                    toast.error("Student ID is missing. Please ensure your backend API returns student_id in submissions.");
+                                    return;
+                                  }
+                                  handleGradeStudent(student.student_id, student.student_name, exam.course_id);
                                 }}
                               >
                                 <ClipboardCheck className="h-4 w-4 mr-2" />
